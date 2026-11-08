@@ -4,7 +4,8 @@ export const db = new SQL(process.env.DATABASE_URL || "sqlite://toko.sqlite");
 
 // ID Discord disimpan sebagai TEXT supaya tidak kehilangan presisi (snowflake > Number.MAX_SAFE_INTEGER).
 
-export type DeliveryMethod = "gamepass" | "group";
+export type DeliveryMethod = "gift" | "group" | "username" | "login";
+const DELIVERY_METHODS: DeliveryMethod[] = ["gift", "group", "username", "login"];
 
 export type OrderStatus =
     | "menunggu_pembayaran"
@@ -21,8 +22,11 @@ export type ShopConfig = {
     ticket_category_id: string | null;
     log_channel_id: string | null;
     testimonial_channel_id: string | null;
-    price_gamepass: number; // Rupiah per 100 Robux (0 = metode nonaktif)
-    price_group: number;    // Rupiah per 100 Robux (0 = metode nonaktif)
+    // Harga Rupiah per 100 Robux tiap metode (0 = metode nonaktif)
+    price_gift: number;
+    price_group: number;
+    price_username: number;
+    price_login: number;
     min_order: number;
     max_order: number;
     payment_info: string | null;
@@ -48,7 +52,7 @@ export type Order = {
     stock_cost: number;
     method: DeliveryMethod;
     roblox_username: string;
-    gamepass_link: string | null;
+    note: string | null; // catatan pembeli (mis. nama game & item untuk Gift In Game); kolom DB: gamepass_link
     status: OrderStatus;
     channel_id: string | null;
     handled_by: string | null;
@@ -140,6 +144,15 @@ const migrations: { version: number; name: string; up: (tx: SQL) => Promise<void
             await tx`ALTER TABLE shop_config ADD COLUMN leaderboard_message_id VARCHAR(20)`;
         },
     },
+    {
+        version: 4,
+        name: "metode gift, username, login",
+        up: async (tx) => {
+            await tx`ALTER TABLE shop_config ADD COLUMN price_gift INTEGER NOT NULL DEFAULT 0`;
+            await tx`ALTER TABLE shop_config ADD COLUMN price_username INTEGER NOT NULL DEFAULT 0`;
+            await tx`ALTER TABLE shop_config ADD COLUMN price_login INTEGER NOT NULL DEFAULT 0`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -169,8 +182,10 @@ function parseConfig(row: any): ShopConfig {
         ticket_category_id: row.ticket_category_id ?? null,
         log_channel_id: row.log_channel_id ?? null,
         testimonial_channel_id: row.testimonial_channel_id ?? null,
-        price_gamepass: Number(row.price_gamepass ?? 0),
+        price_gift: Number(row.price_gift ?? 0),
         price_group: Number(row.price_group ?? 0),
+        price_username: Number(row.price_username ?? 0),
+        price_login: Number(row.price_login ?? 0),
         min_order: Number(row.min_order ?? 100),
         max_order: Number(row.max_order ?? 100000),
         payment_info: row.payment_info ?? null,
@@ -195,8 +210,10 @@ export function defaultConfig(guild_id: string): ShopConfig {
         ticket_category_id: null,
         log_channel_id: null,
         testimonial_channel_id: null,
-        price_gamepass: 0,
+        price_gift: 0,
         price_group: 0,
+        price_username: 0,
+        price_login: 0,
         min_order: 100,
         max_order: 100000,
         payment_info: null,
@@ -222,11 +239,11 @@ export async function getShopConfig(guild_id: string): Promise<ShopConfig | null
 export async function saveShopConfig(c: ShopConfig) {
     await db`
     INSERT INTO shop_config (guild_id, admin_role_id, ticket_category_id, log_channel_id, testimonial_channel_id,
-      price_gamepass, price_group, min_order, max_order, payment_info, panel_channel_id, panel_message_id,
+      price_gift, price_group, price_username, price_login, min_order, max_order, payment_info, panel_channel_id, panel_message_id,
       is_open, close_reason, announce_channel_id, rename_channel,
       store_name, ping_role_id, history_channel_id, leaderboard_channel_id, leaderboard_message_id)
     VALUES (${c.guild_id}, ${c.admin_role_id}, ${c.ticket_category_id}, ${c.log_channel_id}, ${c.testimonial_channel_id},
-      ${c.price_gamepass}, ${c.price_group}, ${c.min_order}, ${c.max_order}, ${c.payment_info},
+      ${c.price_gift}, ${c.price_group}, ${c.price_username}, ${c.price_login}, ${c.min_order}, ${c.max_order}, ${c.payment_info},
       ${c.panel_channel_id}, ${c.panel_message_id},
       ${c.is_open ? 1 : 0}, ${c.close_reason}, ${c.announce_channel_id}, ${c.rename_channel ? 1 : 0},
       ${c.store_name}, ${c.ping_role_id}, ${c.history_channel_id}, ${c.leaderboard_channel_id}, ${c.leaderboard_message_id})
@@ -235,7 +252,9 @@ export async function saveShopConfig(c: ShopConfig) {
       ticket_category_id=excluded.ticket_category_id,
       log_channel_id=excluded.log_channel_id,
       testimonial_channel_id=excluded.testimonial_channel_id,
-      price_gamepass=excluded.price_gamepass,
+      price_gift=excluded.price_gift,
+      price_username=excluded.price_username,
+      price_login=excluded.price_login,
       price_group=excluded.price_group,
       min_order=excluded.min_order,
       max_order=excluded.max_order,
@@ -269,9 +288,9 @@ function parseOrder(row: any): Order {
         robux: Number(row.robux),
         price: Number(row.price),
         stock_cost: Number(row.stock_cost),
-        method: row.method === "group" ? "group" : "gamepass",
+        method: DELIVERY_METHODS.includes(row.method) ? row.method : "group",
         roblox_username: row.roblox_username,
-        gamepass_link: row.gamepass_link ?? null,
+        note: row.gamepass_link ?? null,
         status: row.status,
         channel_id: row.channel_id ?? null,
         handled_by: row.handled_by ?? null,
@@ -281,11 +300,11 @@ function parseOrder(row: any): Order {
     };
 }
 
-export async function createOrder(o: Pick<Order, "guild_id" | "user_id" | "robux" | "price" | "stock_cost" | "method" | "roblox_username" | "gamepass_link">): Promise<Order> {
+export async function createOrder(o: Pick<Order, "guild_id" | "user_id" | "robux" | "price" | "stock_cost" | "method" | "roblox_username" | "note">): Promise<Order> {
     const t = now();
     const [row] = await db`
     INSERT INTO shop_orders (guild_id, user_id, robux, price, stock_cost, method, roblox_username, gamepass_link, status, created_at, updated_at)
-    VALUES (${o.guild_id}, ${o.user_id}, ${o.robux}, ${o.price}, ${o.stock_cost}, ${o.method}, ${o.roblox_username}, ${o.gamepass_link}, 'menunggu_pembayaran', ${t}, ${t})
+    VALUES (${o.guild_id}, ${o.user_id}, ${o.robux}, ${o.price}, ${o.stock_cost}, ${o.method}, ${o.roblox_username}, ${o.note}, 'menunggu_pembayaran', ${t}, ${t})
     RETURNING *`;
     return parseOrder(row);
 }
@@ -310,10 +329,6 @@ export async function getOpenOrderForUser(guild_id: string, user_id: string): Pr
 
 export async function setOrderChannel(id: number, channel_id: string | null) {
     await db`UPDATE shop_orders SET channel_id = ${channel_id}, updated_at = ${now()} WHERE id = ${id}`;
-}
-
-export async function setGamepassLink(id: number, link: string) {
-    await db`UPDATE shop_orders SET gamepass_link = ${link}, updated_at = ${now()} WHERE id = ${id}`;
 }
 
 /**

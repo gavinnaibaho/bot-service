@@ -16,7 +16,7 @@ import { hasPermission, trim } from "./tools";
 import * as shopDb from "./db";
 import type { Order, OrderStatus, ShopConfig } from "./db";
 import { SHOP_COMMAND_NAMES } from "./commands";
-import { METHOD_LABEL, STATUS_LABEL, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
+import { METHODS, METHOD_LABEL, STATUS_LABEL, enabledMethods, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
 import {
     instructionsEmbed,
     methodFromValue,
@@ -75,15 +75,6 @@ function modalValues(components: any[]): Record<string, string> {
 
 function sanitizeChannelName(s: string): string {
     return s.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20) || "pembeli";
-}
-
-function isRobloxGamepassLink(link: string): boolean {
-    try {
-        const u = new URL(link);
-        return /(^|\.)roblox\.com$/.test(u.hostname) && /game-pass|gamepass/i.test(u.pathname);
-    } catch {
-        return false;
-    }
 }
 
 async function logToChannel(api: Api, config: ShopConfig, embed: APIEmbed, files?: { name: string; data: Buffer }[]) {
@@ -205,7 +196,9 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (v("kategori_tiket") !== undefined) c.ticket_category_id = v("kategori_tiket");
                         if (v("channel_log") !== undefined) c.log_channel_id = v("channel_log");
                         if (v("channel_testimoni") !== undefined) c.testimonial_channel_id = v("channel_testimoni");
-                        if (v("harga_gamepass") !== undefined) c.price_gamepass = v("harga_gamepass");
+                        if (v("harga_gig") !== undefined) c.price_gift = v("harga_gig");
+                        if (v("harga_username") !== undefined) c.price_username = v("harga_username");
+                        if (v("harga_login") !== undefined) c.price_login = v("harga_login");
                         if (v("harga_grup") !== undefined) c.price_group = v("harga_grup");
                         if (v("minimal_order") !== undefined) c.min_order = v("minimal_order");
                         if (v("maksimal_order") !== undefined) c.max_order = v("maksimal_order");
@@ -230,8 +223,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
                                     `**Log:** ${c.log_channel_id ? `<#${c.log_channel_id}>` : "_belum_"}`,
                                     `**Testimoni:** ${c.testimonial_channel_id ? `<#${c.testimonial_channel_id}>` : "_belum_"}`,
-                                    `**Harga gamepass:** ${c.price_gamepass ? `${rupiah(c.price_gamepass)} / 100 R$` : "nonaktif"}`,
-                                    `**Harga group payout:** ${c.price_group ? `${rupiah(c.price_group)} / 100 R$` : "nonaktif"}`,
+                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
                                     `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? `<@&${c.ping_role_id}>` : "_tidak ada_"}`,
@@ -354,20 +346,6 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         });
                     }
 
-                    case "gamepass": {
-                        const order = interaction.channel ? await shopDb.getOrderByChannel(interaction.channel.id) : null;
-                        if (!order || order.guild_id !== guildId) return say("❌ Gunakan perintah ini di channel tiket pesananmu.");
-                        if (order.user_id !== userId && !admin) return say("❌ Ini bukan tiket kamu.");
-                        if (order.method !== "gamepass") return say("Pesanan ini memakai Group Payout, tidak perlu link gamepass.");
-                        if (shopDb.FINAL_STATUSES.includes(order.status)) return say("Pesanan ini sudah ditutup.");
-                        const link = String(getOption(opts, "link")?.value ?? "").trim();
-                        if (!isRobloxGamepassLink(link)) return say("❌ Link tidak valid. Contoh: `https://www.roblox.com/game-pass/123456/Nama`");
-                        await shopDb.setGamepassLink(order.id, link);
-                        await reply({ content: `🎟️ Link gamepass untuk ${orderCode(order.id)} disimpan:\n${link}` }, false);
-                        if (config) await logToChannel(api, config, { title: `🎟️ Gamepass ${orderCode(order.id)}`, description: `<@${userId}> mengirim link: ${link}`, color: 0x3498db });
-                        return;
-                    }
-
                 }
                 return;
             }
@@ -382,7 +360,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     return reply({ embeds: [priceEmbed(config, Math.max(config.min_order, 1000))], content: "Contoh untuk 1.000 R$. Pakai `/harga jumlah:` untuk angka lain." });
                 }
                 if (action === "buy") {
-                    if (!config || (config.price_gamepass <= 0 && config.price_group <= 0)) return say("Toko belum dibuka. Tunggu admin mengatur harga, ya.");
+                    if (!config || enabledMethods(config).length === 0) return say("Toko belum dibuka. Tunggu admin mengatur harga, ya.");
                     if (!config.is_open) return say(`🔴 Toko sedang tutup.${config.close_reason ? `\n> ${config.close_reason}` : ""}`);
                     const open = await shopDb.getOpenOrderForUser(guildId, userId);
                     if (open) return say(`Kamu masih punya pesanan aktif ${orderCode(open.id)}${open.channel_id ? ` di <#${open.channel_id}>` : ""}. Selesaikan atau batalkan dulu.`);
@@ -406,7 +384,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (!updated) return stale();
                         await say("✅ Pembayaran dikonfirmasi.");
                         await stripButtons();
-                        const reminder = updated.method === "gamepass" && !updated.gamepass_link ? "\n⚠️ Pembeli belum mengirim link gamepass (`/gamepass`)." : "";
+                        const reminder = updated.method === "login" ? "\n🔐 Admin akan meminta data login di tiket ini. Ingat untuk ganti password setelah selesai." : "";
                         await postOrderStatus(api, updated, `⚙️ Pembayaran diterima — ${orderCode(orderId)}`, `<@${updated.user_id}> pembayaranmu sudah dikonfirmasi, Robux sedang diproses.${reminder}`);
                         await logToChannel(api, config, orderEmbed(updated, `✅ Pembayaran dikonfirmasi ${orderCode(orderId)}`));
                         return;
@@ -493,11 +471,10 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     const amount = parseAmount(values.amount ?? "");
                     const username = (values.username ?? "").trim();
                     const method = methodFromValue(values.method);
-                    const gamepassLink = (values.gamepass ?? "").trim() || null;
+                    const note = trim((values.note ?? "").trim(), 200) || null;
 
                     if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return say("❌ Username Roblox tidak valid (3–20 karakter: huruf, angka, underscore).");
                     if (!method) return say("❌ Pilih metode pengiriman.");
-                    if (gamepassLink && method === "gamepass" && !isRobloxGamepassLink(gamepassLink)) return say("❌ Link gamepass tidak valid. Kosongkan saja dan kirim nanti dengan `/gamepass`.");
                     const check = validateOrder(config, amount, method);
                     if (!check.ok) return say(`❌ ${check.error}`);
 
@@ -513,7 +490,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         stock_cost: check.stockCost,
                         method,
                         roblox_username: username,
-                        gamepass_link: method === "gamepass" ? gamepassLink : null,
+                        note,
                     });
 
                     const view = (PermissionFlagsBits.ViewChannel | PermissionFlagsBits.SendMessages | PermissionFlagsBits.ReadMessageHistory | PermissionFlagsBits.AttachFiles | PermissionFlagsBits.EmbedLinks | PermissionFlagsBits.UseApplicationCommands);

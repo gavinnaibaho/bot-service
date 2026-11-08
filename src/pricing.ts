@@ -1,20 +1,33 @@
 import type { DeliveryMethod, OrderStatus, ShopConfig } from "./db";
 
-/** Roblox memotong 30% dari penjualan gamepass, kreator menerima 70%. */
-export const GAMEPASS_CREATOR_SHARE_NUM = 7;
-export const GAMEPASS_CREATOR_SHARE_DEN = 10;
+/** Urutan metode pengiriman seperti tampil di form & panel. */
+export const METHODS: DeliveryMethod[] = ["gift", "group", "username", "login"];
 
-/**
- * Harga gamepass yang harus dibuat pembeli agar menerima `robux` bersih.
- * Pakai aritmetika integer: ceil(robux * 10 / 7).
- */
-export function gamepassPriceFor(robux: number): number {
-    return Math.ceil((robux * GAMEPASS_CREATOR_SHARE_DEN) / GAMEPASS_CREATOR_SHARE_NUM);
-}
+export const METHOD_LABEL: Record<DeliveryMethod, string> = {
+    gift: "Gift In Game",
+    group: "Group Payout",
+    username: "Via Username",
+    login: "Via Login",
+};
 
-/** Robux yang dikeluarkan penjual untuk satu order (disimpan sebagai arsip). */
-export function stockCostFor(robux: number, method: DeliveryMethod): number {
-    return method === "gamepass" ? gamepassPriceFor(robux) : robux;
+export const METHOD_EMOJI: Record<DeliveryMethod, string> = {
+    gift: "🎁",
+    group: "👥",
+    username: "👤",
+    login: "🔐",
+};
+
+/** Keterangan singkat di pilihan form (maks. 100 karakter termasuk harga). */
+export const METHOD_HINT: Record<DeliveryMethod, string> = {
+    gift: "item/gamepass dikirim sebagai gift di dalam game",
+    group: "dikirim lewat payout grup Roblox",
+    username: "cukup pakai username Roblox",
+    login: "admin login ke akunmu untuk top up",
+};
+
+/** Robux yang dikeluarkan penjual untuk satu order (arsip). */
+export function stockCostFor(robux: number, _method?: DeliveryMethod): number {
+    return robux;
 }
 
 /** Harga Rupiah untuk `robux` dengan tarif per 100 Robux (dibulatkan ke atas). */
@@ -23,14 +36,21 @@ export function priceFor(robux: number, pricePer100: number): number {
 }
 
 export function methodPrice(config: ShopConfig, method: DeliveryMethod): number {
-    return method === "gamepass" ? config.price_gamepass : config.price_group;
+    switch (method) {
+        case "gift": return config.price_gift;
+        case "group": return config.price_group;
+        case "username": return config.price_username;
+        case "login": return config.price_login;
+    }
 }
 
+/** Metode yang aktif (harga > 0). */
 export function enabledMethods(config: ShopConfig): DeliveryMethod[] {
-    const m: DeliveryMethod[] = [];
-    if (config.price_gamepass > 0) m.push("gamepass");
-    if (config.price_group > 0) m.push("group");
-    return m;
+    return METHODS.filter((m) => methodPrice(config, m) > 0);
+}
+
+export function methodLabel(m: DeliveryMethod): string {
+    return `${METHOD_EMOJI[m]} ${METHOD_LABEL[m]}`;
 }
 
 export function rupiah(n: number): string {
@@ -44,11 +64,6 @@ export function robux(n: number): string {
 export function orderCode(id: number): string {
     return "#" + String(id).padStart(4, "0");
 }
-
-export const METHOD_LABEL: Record<DeliveryMethod, string> = {
-    gamepass: "Gamepass",
-    group: "Group Payout",
-};
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
     menunggu_pembayaran: "⏳ Menunggu pembayaran",
@@ -83,7 +98,7 @@ export function validateOrder(config: ShopConfig, amount: number, method: Delive
     if (!enabledMethods(config).includes(method)) return { ok: false, error: `Metode ${METHOD_LABEL[method]} sedang tidak tersedia.` };
     if (amount < config.min_order) return { ok: false, error: `Minimal order ${robux(config.min_order)}.` };
     if (amount > config.max_order) return { ok: false, error: `Maksimal order ${robux(config.max_order)}.` };
-    const stockCost = stockCostFor(amount, method);
+    const stockCost = stockCostFor(amount);
     return { ok: true, robux: amount, price: priceFor(amount, methodPrice(config, method)), stockCost };
 }
 

@@ -11,7 +11,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🟢🔴 Buka/tutup | `/open` dan `/close [alasan]` secara manual. Pengumuman OPEN/CLOSE otomatis (ping role saat buka), tombol Beli nonaktif saat tutup, dan nama channel panel berganti 🟢/🔴 |
 | 🛒 Panel toko | Pesan dengan tombol **Beli Robux / Cek Harga**, otomatis diperbarui saat harga atau status toko berubah |
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
-| 🎟️👥 2 metode | **Gamepass** (harga gamepass dihitung otomatis termasuk potongan 30% Roblox) dan **Group Payout** |
+| 🚚 4 metode | 🎁 **Gift In Game**, 👥 **Group Payout**, 👤 **Via Username**, 🔐 **Via Login**, masing-masing dengan harga sendiri. Metode berharga `0` otomatis disembunyikan |
 | 💳 Bayar manual | Pembeli kirim foto bukti transfer langsung di chat tiket, admin cek lalu klik **Konfirmasi Bayar** |
 | 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode |
 | 🏅 Loyalitas | Role otomatis berdasarkan total Robux yang pernah dibeli |
@@ -24,12 +24,12 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 ## Alur pesanan
 
 ```
-Pembeli klik 🛒 Beli Robux → isi form (jumlah, username, metode, link gamepass)
+Pembeli klik 🛒 Beli Robux → isi form (jumlah, username, metode, catatan)
         ↓
 Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
         ↓  pembeli transfer & kirim foto bukti di chat tiket
         ↓  admin cek bukti, klik ✅ Konfirmasi Bayar
-⚙️ Diproses  (admin membeli gamepass / payout grup di Roblox)
+⚙️ Diproses  (admin mengirim Robux sesuai metode)
         ↓  admin: Robux Terkirim (Selesai)
 ✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket
 ```
@@ -42,7 +42,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 
 | Perintah | Fungsi |
 |---|---|
-| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, harga per 100 R$ tiap metode, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya. Harga `0` = metode nonaktif |
+| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, harga per 100 R$ tiap metode (Gift In Game, Group Payout, Via Username, Via Login), min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya. Harga `0` = metode nonaktif |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
@@ -51,7 +51,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 | `/pesanan id` | Detail pesanan |
 | `/loyalitas atur\|hapus\|daftar` | Kelola role loyalitas |
 
-**Member**: `/harga`, `/riwayat`, `/leaderboard`, serta di dalam tiket: `/gamepass`.
+**Member**: `/harga`, `/riwayat`, `/leaderboard`.
 
 ## Setup
 
@@ -70,7 +70,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
    Atau dengan Docker: `docker compose up -d --build`.
 4. **Di server**:
    - Buat kategori `🎫 TIKET` dan role `Admin Toko`.
-   - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni harga_gamepass:13000 harga_grup:11000 minimal_order:100 maksimal_order:20000`
+   - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni harga_gig:13000 harga_grup:11000 harga_username:12000 harga_login:9000 minimal_order:100 maksimal_order:20000`
    - `/toko-pembayaran`, lalu isi rekening/e-wallet/QRIS.
    - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
    - (opsional) `/loyalitas atur role:@Pelanggan Setia minimal_robux:5000`
@@ -85,7 +85,7 @@ src/
   interaction.ts  semua logika command, tombol, dan form
   commands.ts     definisi slash command
   ui.ts           embed, tombol, modal
-  pricing.ts      perhitungan harga & gamepass
+  pricing.ts      perhitungan harga & daftar metode
   db.ts           database (SQLite default) + migration
   tools.ts        helper kecil
 tests/
@@ -95,7 +95,7 @@ tests/
 ## Catatan
 
 - Bukti pembayaran cukup dikirim sebagai foto biasa di chat tiket. Bot tidak membaca isi pesan, jadi tidak butuh Message Content Intent. Kalau bukti kurang jelas, admin cukup membalas di tiket.
-- Harga gamepass = ⌈Robux × 10 / 7⌉, supaya pembeli menerima Robux bersih sesuai pesanan setelah potongan 30% Roblox.
+- Metode **Via Login**: form tidak pernah meminta password. Data login dikirim pembeli langsung di tiket privat, dan tiket mengingatkan pembeli untuk mengganti password setelah selesai. Bot tidak menyimpan isi chat tiket.
 - Discord membatasi ganti nama channel sekitar 2 kali per 10 menit. Kalau `/open` dan `/close` dipakai berulang dalam waktu singkat, nama channel akan menyusul belakangan. Status toko dan panel tetap langsung berubah. Matikan dengan `/toko-setup ganti_nama_channel:False` jika tidak perlu.
 - "Hari ini" di statistik dihitung dalam WIB.
 - Database default `toko.sqlite`. Bisa diganti ke PostgreSQL lewat `DATABASE_URL`.

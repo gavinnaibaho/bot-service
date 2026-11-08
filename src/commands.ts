@@ -27,8 +27,10 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             { type: ApplicationCommandOptionType.Channel, name: "kategori_tiket", description: "Kategori tempat channel tiket dibuat", channel_types: [ChannelType.GuildCategory] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_log", description: "Channel log transaksi (khusus admin)", channel_types: [ChannelType.GuildText] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_testimoni", description: "Channel publik untuk vouch/testimoni", channel_types: [ChannelType.GuildText] },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_gamepass", description: "Harga Rupiah per 100 Robux via gamepass (0 = nonaktif)", min_value: 0 },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_grup", description: "Harga Rupiah per 100 Robux via group payout (0 = nonaktif)", min_value: 0 },
+            { type: ApplicationCommandOptionType.Integer, name: "harga_gig", description: "Harga Rupiah per 100 Robux via Gift In Game (0 = nonaktif)", min_value: 0 },
+            { type: ApplicationCommandOptionType.Integer, name: "harga_grup", description: "Harga Rupiah per 100 Robux via Group Payout (0 = nonaktif)", min_value: 0 },
+            { type: ApplicationCommandOptionType.Integer, name: "harga_username", description: "Harga Rupiah per 100 Robux via Username (0 = nonaktif)", min_value: 0 },
+            { type: ApplicationCommandOptionType.Integer, name: "harga_login", description: "Harga Rupiah per 100 Robux via Login (0 = nonaktif)", min_value: 0 },
             { type: ApplicationCommandOptionType.Integer, name: "minimal_order", description: "Minimal Robux per order", min_value: 1 },
             { type: ApplicationCommandOptionType.Integer, name: "maksimal_order", description: "Maksimal Robux per order", min_value: 1 },
             { type: ApplicationCommandOptionType.Channel, name: "channel_pengumuman", description: "Channel untuk pengumuman toko buka/tutup", channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement] },
@@ -119,15 +121,6 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ...guildOnly,
         options: [
             { type: ApplicationCommandOptionType.Integer, name: "jumlah", description: "Jumlah Robux yang ingin kamu terima", required: true, min_value: 1 },
-        ],
-    },
-    {
-        name: "gamepass",
-        description: "Kirim/ubah link gamepass untuk pesanan di tiket ini",
-        type: ApplicationCommandType.ChatInput,
-        ...guildOnly,
-        options: [
-            { type: ApplicationCommandOptionType.String, name: "link", description: "Link gamepass Roblox", required: true, max_length: 300 },
         ],
     },
     {

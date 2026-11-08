@@ -9,11 +9,15 @@ import {
 } from "discord-api-types/v10";
 import type { DeliveryMethod, Order, ShopConfig, ShopStats } from "./db";
 import {
+    METHODS,
+    METHOD_EMOJI,
+    METHOD_HINT,
     METHOD_LABEL,
     STATUS_COLOR,
     STATUS_LABEL,
     enabledMethods,
-    gamepassPriceFor,
+    methodLabel,
+    methodPrice,
     orderCode,
     priceFor,
     robux,
@@ -38,9 +42,7 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 export function panelMessage(config: ShopConfig) {
     const methods = enabledMethods(config);
-    const lines: string[] = [];
-    if (methods.includes("gamepass")) lines.push(`🎟️ **Gamepass:** ${rupiah(config.price_gamepass)} / 100 R$`);
-    if (methods.includes("group")) lines.push(`👥 **Group Payout:** ${rupiah(config.price_group)} / 100 R$`);
+    const lines: string[] = methods.map((m) => `${methodLabel(m).replace(" ", " **")}:** ${rupiah(methodPrice(config, m))} / 100 R$`);
     if (lines.length === 0) lines.push("_Harga belum diatur oleh admin._");
 
     const status = config.is_open
@@ -203,9 +205,8 @@ export function statusChannelName(current: string, open: boolean): string {
 export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
     const methods = enabledMethods(config);
     const fields = methods.map((m) => {
-        const price = priceFor(amount, m === "gamepass" ? config.price_gamepass : config.price_group);
-        const extra = m === "gamepass" ? `\nBuat gamepass seharga **${robux(gamepassPriceFor(amount))}** (potongan Roblox 30%)` : "";
-        return { name: METHOD_LABEL[m], value: `**${rupiah(price)}**${extra}`, inline: false };
+        const price = priceFor(amount, methodPrice(config, m));
+        return { name: methodLabel(m), value: `**${rupiah(price)}**`, inline: true };
     });
     const warnings: string[] = [];
     if (amount < config.min_order) warnings.push(`⚠️ Di bawah minimal order (${robux(config.min_order)}).`);
@@ -249,19 +250,18 @@ export function orderModal(config: ShopConfig): APIModalInteractionResponseCallb
                     options: methods.map((m, i) => ({
                         label: METHOD_LABEL[m],
                         value: m,
-                        description: m === "gamepass"
-                            ? `${rupiah(config.price_gamepass)} / 100 R$ — kamu buat gamepass, kami beli`
-                            : `${rupiah(config.price_group)} / 100 R$ — dikirim lewat grup Roblox`,
+                        emoji: { name: METHOD_EMOJI[m] },
+                        description: `${rupiah(methodPrice(config, m))} / 100 R$ — ${METHOD_HINT[m]}`.slice(0, 100),
                         default: i === 0,
                     })),
                 },
             },
-            ...(methods.includes("gamepass") ? [{
-                type: ComponentType.Label as const,
-                label: "Link Gamepass (opsional)",
-                description: "Khusus metode gamepass. Bisa dikirim nanti dengan /gamepass di tiket.",
-                component: { type: ComponentType.TextInput as const, custom_id: "gamepass", style: TextInputStyle.Short, placeholder: "https://www.roblox.com/game-pass/...", max_length: 300, required: false },
-            }] : []),
+            {
+                type: ComponentType.Label,
+                label: "Catatan (opsional)",
+                description: "Gift In Game: tulis nama game & item. Metode lain: info tambahan untuk admin.",
+                component: { type: ComponentType.TextInput, custom_id: "note", style: TextInputStyle.Short, placeholder: "contoh: Blox Fruits — Gamepass 2x Mastery", max_length: 200, required: false },
+            },
         ],
     };
 }
@@ -321,15 +321,12 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
     const fields = [
         { name: "Pembeli", value: `<@${order.user_id}>`, inline: true },
         { name: "Username Roblox", value: `\`${order.roblox_username}\``, inline: true },
-        { name: "Metode", value: METHOD_LABEL[order.method], inline: true },
+        { name: "Metode", value: methodLabel(order.method), inline: true },
         { name: "Jumlah", value: robux(order.robux), inline: true },
         { name: "Total Bayar", value: `**${rupiah(order.price)}**`, inline: true },
         { name: "Status", value: STATUS_LABEL[order.status], inline: true },
     ];
-    if (order.method === "gamepass") {
-        fields.push({ name: "Harga Gamepass", value: robux(gamepassPriceFor(order.robux)), inline: true });
-        fields.push({ name: "Link Gamepass", value: order.gamepass_link ?? "_belum dikirim — gunakan `/gamepass`_", inline: false });
-    }
+    if (order.note) fields.push({ name: "Catatan", value: order.note, inline: false });
     if (order.handled_by) fields.push({ name: "Ditangani oleh", value: `<@${order.handled_by}>`, inline: true });
     return {
         title: title ?? `Pesanan ${orderCode(order.id)}`,
@@ -343,14 +340,24 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     const steps: string[] = [];
     steps.push(`**1. Bayar ${rupiah(order.price)}** ke salah satu metode di bawah.`);
     steps.push("**2. Kirim foto bukti transfer** langsung di chat tiket ini.");
-    if (order.method === "gamepass") {
-        steps.push(
-            `**3. Buat gamepass** di salah satu game milikmu seharga **${robux(gamepassPriceFor(order.robux))}** ` +
-            `(Roblox memotong 30%, jadi kamu menerima ${robux(order.robux)}). Kirim linknya dengan \`/gamepass\`.`,
-        );
-        steps.push("ℹ️ Robux dari gamepass biasanya masuk sebagai **Pending** selama beberapa hari sebelum bisa dipakai (aturan Roblox).");
-    } else {
-        steps.push("**3. Pastikan kamu sudah bergabung ke grup Roblox toko** dan memenuhi syarat payout dari Roblox. Tanya admin jika belum tahu grupnya.");
+    switch (order.method) {
+        case "gift":
+            steps.push("**3. Tulis nama game & item** yang ingin dikirim sebagai gift (kalau belum diisi di form). Admin akan mengirim gift ke akun Roblox kamu di dalam game tersebut.");
+            break;
+        case "group":
+            steps.push("**3. Pastikan kamu sudah bergabung ke grup Roblox toko** dan memenuhi syarat payout dari Roblox. Tanya admin jika belum tahu grupnya.");
+            break;
+        case "username":
+            steps.push(`**3. Pastikan username Roblox kamu benar** (\`${order.roblox_username}\`). Admin hanya butuh username, tidak perlu password.`);
+            break;
+        case "login":
+            steps.push(
+                "**3. Admin akan meminta data login di tiket ini.**\n" +
+                "🔐 Kirim **hanya di tiket ini**, jangan pernah di channel lain atau ke DM siapa pun yang mengaku admin.\n" +
+                "🔐 Matikan 2-Step Verification sementara jika diminta admin.\n" +
+                "🔐 **Segera ganti password** setelah pesanan selesai.",
+            );
+            break;
     }
     steps.push("**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengirim Robux.");
     return {
@@ -423,5 +430,5 @@ export function statsEmbed(stats: ShopStats, config: ShopConfig): APIEmbed {
 }
 
 export function methodFromValue(v: string | undefined): DeliveryMethod | null {
-    return v === "gamepass" || v === "group" ? v : null;
+    return (METHODS as string[]).includes(v ?? "") ? (v as DeliveryMethod) : null;
 }
