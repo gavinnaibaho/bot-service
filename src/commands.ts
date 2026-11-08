@@ -122,15 +122,6 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
-        name: "bukti",
-        description: "Kirim bukti pembayaran (gunakan di channel tiket kamu)",
-        type: ApplicationCommandType.ChatInput,
-        ...guildOnly,
-        options: [
-            { type: ApplicationCommandOptionType.Attachment, name: "gambar", description: "Screenshot bukti transfer", required: true },
-        ],
-    },
-    {
         name: "gamepass",
         description: "Kirim/ubah link gamepass untuk pesanan di tiket ini",
         type: ApplicationCommandType.ChatInput,

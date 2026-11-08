@@ -39,8 +39,6 @@ import {
 
 type Api = API;
 
-const MAX_PROOF_BYTES = 8 * 1024 * 1024;
-const ALLOWED_PROOF_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 // ---------- Helper ----------
 
@@ -370,44 +368,6 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
                     }
 
-                    case "bukti": {
-                        if (!config) return say("Toko belum dibuka.");
-                        const order = interaction.channel ? await shopDb.getOrderByChannel(interaction.channel.id) : null;
-                        if (!order || order.guild_id !== guildId) return say("❌ Gunakan perintah ini di channel tiket pesananmu.");
-                        if (order.user_id !== userId) return say("❌ Hanya pembeli yang bisa mengirim bukti untuk pesanan ini.");
-                        if (!["menunggu_pembayaran", "menunggu_verifikasi"].includes(order.status)) return say(`Pesanan sudah berstatus ${STATUS_LABEL[order.status]}.`);
-
-                        const attId = getOption(opts, "gambar")?.value as string;
-                        const att = data.resolved?.attachments?.[attId];
-                        if (!att) return say("❌ Lampiran tidak terbaca, coba lagi.");
-                        if (att.content_type && !ALLOWED_PROOF_TYPES.includes(att.content_type.split(";")[0])) return say("❌ Bukti harus berupa gambar (PNG/JPG/WEBP).");
-                        if (att.size > MAX_PROOF_BYTES) return say("❌ Gambar terlalu besar (maks. 8 MB).");
-
-                        await defer();
-                        // Unggah ulang supaya bukti tetap ada walau link CDN asli kedaluwarsa.
-                        const res = await fetch(att.url);
-                        if (!res.ok) return edit({ content: "❌ Gagal mengunduh gambar, coba kirim ulang." });
-                        const buf = Buffer.from(await res.arrayBuffer());
-                        const ext = (att.filename.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-                        const fileName = `bukti-${order.id}.${ext || "png"}`;
-
-                        const updated = await shopDb.transitionOrder(guildId, order.id, ["menunggu_pembayaran", "menunggu_verifikasi"], "menunggu_verifikasi");
-                        if (!updated) return edit({ content: "Status pesanan sudah berubah, bukti tidak dikirim." });
-
-                        const proofEmbed = orderEmbed(updated, `🧾 Bukti Pembayaran ${orderCode(order.id)}`);
-                        proofEmbed.image = { url: `attachment://${fileName}` };
-                        await api.channels.createMessage(order.channel_id!, {
-                            content: config.admin_role_id ? `<@&${config.admin_role_id}> bukti pembayaran masuk.` : "Bukti pembayaran masuk.",
-                            embeds: [proofEmbed],
-                            components: orderButtons(updated),
-                            files: [{ name: fileName, data: buf }],
-                            allowed_mentions: config.admin_role_id ? { roles: [config.admin_role_id] } : { parse: [] },
-                        } as any);
-                        const logEmbed = orderEmbed(updated, `🧾 Bukti masuk ${orderCode(order.id)}`);
-                        logEmbed.image = { url: `attachment://${fileName}` };
-                        await logToChannel(api, config, logEmbed, [{ name: fileName, data: buf }]);
-                        return edit({ content: "✅ Bukti terkirim. Mohon tunggu admin memverifikasi." });
-                    }
                 }
                 return;
             }
@@ -449,16 +409,6 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const reminder = updated.method === "gamepass" && !updated.gamepass_link ? "\n⚠️ Pembeli belum mengirim link gamepass (`/gamepass`)." : "";
                         await postOrderStatus(api, updated, `⚙️ Pembayaran diterima — ${orderCode(orderId)}`, `<@${updated.user_id}> pembayaranmu sudah dikonfirmasi, Robux sedang diproses.${reminder}`);
                         await logToChannel(api, config, orderEmbed(updated, `✅ Pembayaran dikonfirmasi ${orderCode(orderId)}`));
-                        return;
-                    }
-                    case "reject": {
-                        if (!admin) return say("❌ Hanya admin yang bisa menolak bukti.");
-                        const updated = await shopDb.transitionOrder(guildId, orderId, ["menunggu_verifikasi"], "menunggu_pembayaran", userId);
-                        if (!updated) return stale();
-                        await say("↩️ Bukti ditolak.");
-                        await stripButtons();
-                        await postOrderStatus(api, updated, `↩️ Bukti ditolak — ${orderCode(orderId)}`, `<@${updated.user_id}> bukti pembayaranmu belum bisa diterima. Periksa nominal/tujuan transfer lalu kirim ulang dengan \`/bukti\`, atau tanyakan ke admin di sini.`);
-                        await logToChannel(api, config, orderEmbed(updated, `↩️ Bukti ditolak ${orderCode(orderId)}`));
                         return;
                     }
                     case "done": {

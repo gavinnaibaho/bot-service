@@ -12,14 +12,14 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🛒 Panel toko | Pesan dengan tombol **Beli Robux / Cek Harga**, otomatis diperbarui saat harga atau status toko berubah |
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
 | 🎟️👥 2 metode | **Gamepass** (harga gamepass dihitung otomatis termasuk potongan 30% Roblox) dan **Group Payout** |
-| 💳 Bayar manual | Pembeli kirim bukti dengan `/bukti`, admin klik **Terima / Tolak** |
+| 💳 Bayar manual | Pembeli kirim foto bukti transfer langsung di chat tiket, admin cek lalu klik **Konfirmasi Bayar** |
 | 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode |
 | 🏅 Loyalitas | Role otomatis berdasarkan total Robux yang pernah dibeli |
 | 💎 Vouch | Setelah selesai, pembeli kirim rating + ulasan; tampil sebagai **NEW VOUCH** lengkap dengan avatar, nominal, dan status |
 | ⭐ Riwayat transaksi | Channel publik berisi **Transaksi selesai** (pembeli, jenis order, nominal, total transaksi pembeli, admin yang memproses) dan **Tiket Ditutup** |
 | 🏆 Leaderboard | Top 10 pembeli berdasarkan total belanja + jumlah customer & total spending. Pesan di channel leaderboard otomatis diperbarui setiap transaksi selesai; bisa juga dilihat dengan `/leaderboard` |
 | 📊 Panel admin | `/toko-statistik`: pendapatan hari ini/7/30 hari, pesanan tertunda, top pembeli |
-| 📝 Log | Semua kejadian (order baru, bukti, konfirmasi, selesai, batal, buka/tutup) dicatat ke channel log |
+| 📝 Log | Semua kejadian (order baru, konfirmasi, selesai, batal, buka/tutup) dicatat ke channel log |
 
 ## Alur pesanan
 
@@ -27,9 +27,8 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 Pembeli klik 🛒 Beli Robux → isi form (jumlah, username, metode, link gamepass)
         ↓
 Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
-        ↓  pembeli transfer lalu /bukti gambar:<screenshot>
-🔎 Menunggu verifikasi  ──(admin: Tolak Bukti)──→ kembali ke Menunggu pembayaran
-        ↓  admin: Terima Pembayaran
+        ↓  pembeli transfer & kirim foto bukti di chat tiket
+        ↓  admin cek bukti, klik ✅ Konfirmasi Bayar
 ⚙️ Diproses  (admin membeli gamepass / payout grup di Roblox)
         ↓  admin: Robux Terkirim (Selesai)
 ✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket
@@ -52,7 +51,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 | `/pesanan id` | Detail pesanan |
 | `/loyalitas atur\|hapus\|daftar` | Kelola role loyalitas |
 
-**Member**: `/harga`, `/riwayat`, `/leaderboard`, serta di dalam tiket: `/bukti`, `/gamepass`.
+**Member**: `/harga`, `/riwayat`, `/leaderboard`, serta di dalam tiket: `/gamepass`.
 
 ## Setup
 
@@ -95,7 +94,7 @@ tests/
 
 ## Catatan
 
-- Bukti pembayaran dikirim lewat slash command, lalu bot mengunggah ulang gambarnya ke tiket & log supaya tidak hilang saat link CDN Discord kedaluwarsa.
+- Bukti pembayaran cukup dikirim sebagai foto biasa di chat tiket. Bot tidak membaca isi pesan, jadi tidak butuh Message Content Intent. Kalau bukti kurang jelas, admin cukup membalas di tiket.
 - Harga gamepass = ⌈Robux × 10 / 7⌉, supaya pembeli menerima Robux bersih sesuai pesanan setelah potongan 30% Roblox.
 - Discord membatasi ganti nama channel sekitar 2 kali per 10 menit. Kalau `/open` dan `/close` dipakai berulang dalam waktu singkat, nama channel akan menyusul belakangan. Status toko dan panel tetap langsung berubah. Matikan dengan `/toko-setup ganti_nama_channel:False` jika tidak perlu.
 - "Hari ini" di statistik dihitung dalam WIB.

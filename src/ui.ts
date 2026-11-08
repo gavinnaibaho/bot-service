@@ -342,7 +342,7 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
 export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     const steps: string[] = [];
     steps.push(`**1. Bayar ${rupiah(order.price)}** ke salah satu metode di bawah.`);
-    steps.push("**2. Kirim bukti** dengan perintah `/bukti` di channel ini.");
+    steps.push("**2. Kirim foto bukti transfer** langsung di chat tiket ini.");
     if (order.method === "gamepass") {
         steps.push(
             `**3. Buat gamepass** di salah satu game milikmu seharga **${robux(gamepassPriceFor(order.robux))}** ` +
@@ -352,7 +352,7 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     } else {
         steps.push("**3. Pastikan kamu sudah bergabung ke grup Roblox toko** dan memenuhi syarat payout dari Roblox. Tanya admin jika belum tahu grupnya.");
     }
-    steps.push("**4. Tunggu admin** memverifikasi dan mengirim Robux.");
+    steps.push("**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengirim Robux.");
     return {
         title: "📋 Cara Menyelesaikan Pesanan",
         description: steps.join("\n") + `\n\n💳 **Pembayaran**\n${config.payment_info ?? "_Admin belum mengatur info pembayaran. Tunggu admin di tiket ini._"}`,
@@ -370,10 +370,9 @@ export function orderButtons(order: Order): Row[] {
                 button(`shop:verify:${id}`, "Konfirmasi Bayar (Admin)", ButtonStyle.Success, "✅"),
                 button(`shop:cancel:${id}`, "Batalkan", ButtonStyle.Danger, "✖️"),
             )];
-        case "menunggu_verifikasi":
+        case "menunggu_verifikasi": // status lama, diperlakukan sama seperti menunggu pembayaran
             return [row(
-                button(`shop:verify:${id}`, "Terima Pembayaran", ButtonStyle.Success, "✅"),
-                button(`shop:reject:${id}`, "Tolak Bukti", ButtonStyle.Secondary, "↩️"),
+                button(`shop:verify:${id}`, "Konfirmasi Bayar (Admin)", ButtonStyle.Success, "✅"),
                 button(`shop:cancel:${id}`, "Batalkan", ButtonStyle.Danger, "✖️"),
             )];
         case "diproses":
@@ -412,7 +411,7 @@ export function statsEmbed(stats: ShopStats, config: ShopConfig): APIEmbed {
             { name: "Pesanan", value: `${stats.completed} selesai dari ${stats.totalOrders} total\n${stats.ordersToday} pesanan baru hari ini`, inline: false },
             {
                 name: "Perlu ditangani",
-                value: `⏳ Menunggu bayar: **${stats.pending.menunggu_pembayaran}**\n🔎 Menunggu verifikasi: **${stats.pending.menunggu_verifikasi}**\n⚙️ Diproses: **${stats.pending.diproses}**`,
+                value: `⏳ Menunggu bayar/konfirmasi: **${stats.pending.menunggu_pembayaran + stats.pending.menunggu_verifikasi}**\n⚙️ Diproses: **${stats.pending.diproses}**`,
                 inline: false,
             },
             { name: "🏆 Top pembeli", value: top, inline: false },
