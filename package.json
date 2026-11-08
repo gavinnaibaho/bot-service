@@ -1,0 +1,21 @@
+{
+  "name": "toko-robux-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@discordjs/core": "^2.2.2",
+    "@discordjs/rest": "^2.5.1",
+    "@discordjs/ws": "^2.0.3",
+    "discord-api-types": "^0.38.57"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  }
+}

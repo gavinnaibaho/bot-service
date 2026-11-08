@@ -1,0 +1,103 @@
+# 🛒 Toko Robux Bot
+
+Bot Discord untuk melayani jual-beli Robux di server: tiket order, pembayaran manual, buka/tutup toko, vouch, riwayat transaksi, leaderboard, role loyalitas, dan statistik penjualan. Semua tampilan dalam Bahasa Indonesia.
+
+Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](https://github.com/RiskyMH/honeypot) secara terpisah.
+
+## Fitur
+
+| Fitur | Keterangan |
+|---|---|
+| 🟢🔴 Buka/tutup | `/open` dan `/close [alasan]` secara manual. Pengumuman OPEN/CLOSE otomatis (ping role saat buka), tombol Beli nonaktif saat tutup, dan nama channel panel berganti 🟢/🔴 |
+| 🛒 Panel toko | Pesan dengan tombol **Beli Robux / Cek Harga**, otomatis diperbarui saat harga atau status toko berubah |
+| 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
+| 🎟️👥 2 metode | **Gamepass** (harga gamepass dihitung otomatis termasuk potongan 30% Roblox) dan **Group Payout** |
+| 💳 Bayar manual | Pembeli kirim bukti dengan `/bukti`, admin klik **Terima / Tolak** |
+| 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode |
+| 🏅 Loyalitas | Role otomatis berdasarkan total Robux yang pernah dibeli |
+| 💎 Vouch | Setelah selesai, pembeli kirim rating + ulasan; tampil sebagai **NEW VOUCH** lengkap dengan avatar, nominal, dan status |
+| ⭐ Riwayat transaksi | Channel publik berisi **Transaksi selesai** (pembeli, jenis order, nominal, total transaksi pembeli, admin yang memproses) dan **Tiket Ditutup** |
+| 🏆 Leaderboard | Top 10 pembeli berdasarkan total belanja + jumlah customer & total spending. Pesan di channel leaderboard otomatis diperbarui setiap transaksi selesai; bisa juga dilihat dengan `/leaderboard` |
+| 📊 Panel admin | `/toko-statistik`: pendapatan hari ini/7/30 hari, pesanan tertunda, top pembeli |
+| 📝 Log | Semua kejadian (order baru, bukti, konfirmasi, selesai, batal, buka/tutup) dicatat ke channel log |
+
+## Alur pesanan
+
+```
+Pembeli klik 🛒 Beli Robux → isi form (jumlah, username, metode, link gamepass)
+        ↓
+Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
+        ↓  pembeli transfer lalu /bukti gambar:<screenshot>
+🔎 Menunggu verifikasi  ──(admin: Tolak Bukti)──→ kembali ke Menunggu pembayaran
+        ↓  admin: Terima Pembayaran
+⚙️ Diproses  (admin membeli gamepass / payout grup di Roblox)
+        ↓  admin: Robux Terkirim (Selesai)
+✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket
+```
+
+Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admin yang bisa membatalkan. Satu pembeli hanya boleh punya satu pesanan aktif.
+
+## Perintah
+
+**Admin** (butuh izin *Manage Server*; tombol di tiket juga bisa dipakai role admin toko)
+
+| Perintah | Fungsi |
+|---|---|
+| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, harga per 100 R$ tiap metode, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya. Harga `0` = metode nonaktif |
+| `/open` | Buka toko |
+| `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
+| `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
+| `/toko-panel` | Kirim panel toko ke channel saat ini |
+| `/toko-statistik` | Panel admin |
+| `/pesanan id` | Detail pesanan |
+| `/loyalitas atur\|hapus\|daftar` | Kelola role loyalitas |
+
+**Member**: `/harga`, `/riwayat`, `/leaderboard`, serta di dalam tiket: `/bukti`, `/gamepass`.
+
+## Setup
+
+1. **Buat aplikasi bot baru** di [Discord Developer Portal](https://discord.com/developers/applications) (terpisah dari bot honeypot). Salin token-nya. Tidak perlu mengaktifkan privileged intent apa pun.
+2. **Invite bot** (ganti `CLIENT_ID` dengan Application ID):
+   ```
+   https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=268561424
+   ```
+   Izin: Manage Channels, Manage Roles, View Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History.
+3. **Jalankan** (butuh [Bun](https://bun.sh) v1.2+):
+   ```bash
+   cp .env.example .env   # isi DISCORD_TOKEN, dan GUILD_ID supaya command langsung muncul
+   bun install
+   bun start
+   ```
+   Atau dengan Docker: `docker compose up -d --build`.
+4. **Di server**:
+   - Buat kategori `🎫 TIKET` dan role `Admin Toko`.
+   - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni harga_gamepass:13000 harga_grup:11000 minimal_order:100 maksimal_order:20000`
+   - `/toko-pembayaran`, lalu isi rekening/e-wallet/QRIS.
+   - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
+   - (opsional) `/loyalitas atur role:@Pelanggan Setia minimal_robux:5000`
+   - Di channel toko: `/toko-panel`
+5. **Taruh role bot di atas** role-role loyalitas (Server Settings → Roles).
+
+## Struktur kode
+
+```
+src/
+  index.ts        koneksi Discord & pendaftaran command
+  interaction.ts  semua logika command, tombol, dan form
+  commands.ts     definisi slash command
+  ui.ts           embed, tombol, modal
+  pricing.ts      perhitungan harga & gamepass
+  db.ts           database (SQLite default) + migration
+  tools.ts        helper kecil
+tests/
+  toko.test.ts    tes alur database & harga (bun test)
+```
+
+## Catatan
+
+- Bukti pembayaran dikirim lewat slash command, lalu bot mengunggah ulang gambarnya ke tiket & log supaya tidak hilang saat link CDN Discord kedaluwarsa.
+- Harga gamepass = ⌈Robux × 10 / 7⌉, supaya pembeli menerima Robux bersih sesuai pesanan setelah potongan 30% Roblox.
+- Discord membatasi ganti nama channel sekitar 2 kali per 10 menit. Kalau `/open` dan `/close` dipakai berulang dalam waktu singkat, nama channel akan menyusul belakangan. Status toko dan panel tetap langsung berubah. Matikan dengan `/toko-setup ganti_nama_channel:False` jika tidak perlu.
+- "Hari ini" di statistik dihitung dalam WIB.
+- Database default `toko.sqlite`. Bisa diganti ke PostgreSQL lewat `DATABASE_URL`.
+- ⚠️ Jual-beli Robux di luar jalur resmi Roblox berisiko melanggar Terms of Use Roblox. Pertimbangkan risikonya untuk akunmu dan akun pembeli.

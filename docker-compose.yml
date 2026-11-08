@@ -1,0 +1,11 @@
+services:
+  toko:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:///data/toko.sqlite
+    volumes:
+      - data:/data
+volumes:
+  data:
