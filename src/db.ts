@@ -153,6 +153,22 @@ const migrations: { version: number; name: string; up: (tx: SQL) => Promise<void
             await tx`ALTER TABLE shop_config ADD COLUMN price_login INTEGER NOT NULL DEFAULT 0`;
         },
     },
+    {
+        version: 5,
+        name: "daftar harga per metode",
+        up: async (tx) => {
+            await tx`
+CREATE TABLE IF NOT EXISTS shop_pricelists (
+  guild_id VARCHAR(20) NOT NULL,
+  method VARCHAR(16) NOT NULL,
+  channel_id VARCHAR(20) NOT NULL,
+  message_id VARCHAR(20),
+  PRIMARY KEY (guild_id, method)
+)`;
+            // GIG aktif secara default (price_gift dipakai sebagai penanda aktif)
+            await tx`UPDATE shop_config SET price_gift = 1`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -210,7 +226,7 @@ export function defaultConfig(guild_id: string): ShopConfig {
         ticket_category_id: null,
         log_channel_id: null,
         testimonial_channel_id: null,
-        price_gift: 0,
+        price_gift: 1, // GIG aktif secara default
         price_group: 0,
         price_username: 0,
         price_login: 0,
@@ -349,6 +365,28 @@ export async function transitionOrder(guild_id: string, id: number, from: OrderS
     });
 }
 
+export async function setOrderNote(id: number, note: string | null) {
+    await db`UPDATE shop_orders SET gamepass_link = ${note}, updated_at = ${now()} WHERE id = ${id}`;
+}
+
+/**
+ * Konfirmasi pembayaran: menunggu_pembayaran -> diproses.
+ * `price` diisi untuk GIG (harga dihitung manual oleh admin saat konfirmasi).
+ */
+export async function confirmOrder(guild_id: string, id: number, handled_by: string, price?: number): Promise<Order | null> {
+    return db.begin(async (tx) => {
+        const [row] = await tx`SELECT status FROM shop_orders WHERE guild_id = ${guild_id} AND id = ${id}`;
+        if (!row || !["menunggu_pembayaran", "menunggu_verifikasi"].includes(row.status)) return null;
+        if (price !== undefined) {
+            await tx`UPDATE shop_orders SET status = 'diproses', handled_by = ${handled_by}, price = ${price}, updated_at = ${now()} WHERE id = ${id}`;
+        } else {
+            await tx`UPDATE shop_orders SET status = 'diproses', handled_by = ${handled_by}, updated_at = ${now()} WHERE id = ${id}`;
+        }
+        const [updated] = await tx`SELECT * FROM shop_orders WHERE id = ${id}`;
+        return parseOrder(updated);
+    });
+}
+
 /** Tandai selesai (hanya dari status diproses). */
 export async function completeOrder(guild_id: string, id: number, handled_by: string): Promise<Order | null> {
     return transitionOrder(guild_id, id, ["diproses"], "selesai", handled_by);
@@ -454,6 +492,37 @@ export async function getUserTotalSpent(guild_id: string, user_id: string): Prom
 
 export async function setLeaderboardMessage(guild_id: string, message_id: string | null) {
     await db`UPDATE shop_config SET leaderboard_message_id = ${message_id} WHERE guild_id = ${guild_id}`;
+}
+
+// ---------- Daftar harga ----------
+
+export type PriceList = { guild_id: string; method: DeliveryMethod; channel_id: string; message_id: string | null };
+
+export async function getPriceLists(guild_id: string): Promise<PriceList[]> {
+    const rows = await db`SELECT * FROM shop_pricelists WHERE guild_id = ${guild_id}`;
+    return rows.map((r: any) => ({ guild_id: String(r.guild_id), method: r.method, channel_id: String(r.channel_id), message_id: r.message_id ?? null }));
+}
+
+export async function getPriceList(guild_id: string, method: DeliveryMethod): Promise<PriceList | null> {
+    const [r] = await db`SELECT * FROM shop_pricelists WHERE guild_id = ${guild_id} AND method = ${method}`;
+    return r ? { guild_id: String(r.guild_id), method: r.method, channel_id: String(r.channel_id), message_id: r.message_id ?? null } : null;
+}
+
+export async function savePriceList(p: PriceList) {
+    await db`
+    INSERT INTO shop_pricelists (guild_id, method, channel_id, message_id) VALUES (${p.guild_id}, ${p.method}, ${p.channel_id}, ${p.message_id})
+    ON CONFLICT(guild_id, method) DO UPDATE SET channel_id = excluded.channel_id, message_id = excluded.message_id`;
+}
+
+export async function deletePriceList(guild_id: string, method: DeliveryMethod) {
+    await db`DELETE FROM shop_pricelists WHERE guild_id = ${guild_id} AND method = ${method}`;
+}
+
+/** Ubah tarif satu metode (Rupiah per 100 Robux). */
+export async function setMethodPrice(guild_id: string, method: Exclude<DeliveryMethod, "gift">, price: number) {
+    if (method === "login") await db`UPDATE shop_config SET price_login = ${price} WHERE guild_id = ${guild_id}`;
+    else if (method === "username") await db`UPDATE shop_config SET price_username = ${price} WHERE guild_id = ${guild_id}`;
+    else await db`UPDATE shop_config SET price_group = ${price} WHERE guild_id = ${guild_id}`;
 }
 
 // ---------- Loyalitas ----------

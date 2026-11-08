@@ -6,7 +6,7 @@ export const METHODS: DeliveryMethod[] = ["gift", "group", "username", "login"];
 export const METHOD_LABEL: Record<DeliveryMethod, string> = {
     gift: "Gift In Game",
     group: "Group Payout",
-    username: "Via Username",
+    username: "Via Send Username",
     login: "Via Login",
 };
 
@@ -19,11 +19,17 @@ export const METHOD_EMOJI: Record<DeliveryMethod, string> = {
 
 /** Keterangan singkat di pilihan form (maks. 100 karakter termasuk harga). */
 export const METHOD_HINT: Record<DeliveryMethod, string> = {
-    gift: "item/gamepass dikirim sebagai gift di dalam game",
-    group: "dikirim lewat payout grup Roblox",
-    username: "cukup pakai username Roblox",
-    login: "admin login ke akunmu untuk top up",
+    gift: "Item di dalam map/game, harga dihitung admin",
+    group: "Dikirim lewat payout grup Roblox",
+    username: "Cukup pakai username Roblox",
+    login: "Admin login ke akunmu untuk top up",
 };
+
+/** Metode dengan harga tetap per 100 Robux (punya daftar harga). GIG tidak termasuk. */
+export const PRICED_METHODS: DeliveryMethod[] = ["login", "username", "group"];
+
+/** Jumlah Robux yang ditampilkan di daftar harga. */
+export const PRICE_TIERS = [100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000];
 
 /** Robux yang dikeluarkan penjual untuk satu order (arsip). */
 export function stockCostFor(robux: number, _method?: DeliveryMethod): number {
@@ -35,18 +41,29 @@ export function priceFor(robux: number, pricePer100: number): number {
     return Math.ceil((robux * pricePer100) / 100);
 }
 
+/** Tarif per 100 Robux. GIG selalu 0 karena harganya dihitung manual oleh admin. */
 export function methodPrice(config: ShopConfig, method: DeliveryMethod): number {
     switch (method) {
-        case "gift": return config.price_gift;
+        case "gift": return 0;
         case "group": return config.price_group;
         case "username": return config.price_username;
         case "login": return config.price_login;
     }
 }
 
-/** Metode yang aktif (harga > 0). */
+/** GIG aktif/nonaktif disimpan di kolom price_gift sebagai penanda (1 = aktif). */
+export function isMethodEnabled(config: ShopConfig, method: DeliveryMethod): boolean {
+    return method === "gift" ? config.price_gift > 0 : methodPrice(config, method) > 0;
+}
+
+/** Metode yang aktif, urut seperti METHODS. */
 export function enabledMethods(config: ShopConfig): DeliveryMethod[] {
-    return METHODS.filter((m) => methodPrice(config, m) > 0);
+    return METHODS.filter((m) => isMethodEnabled(config, m));
+}
+
+/** Format "Rp 15.500" (dengan spasi) untuk daftar harga. */
+export function rupiahList(n: number): string {
+    return "Rp " + Math.round(n).toLocaleString("id-ID");
 }
 
 export function methodLabel(m: DeliveryMethod): string {
@@ -95,7 +112,9 @@ export type ValidationResult =
 
 export function validateOrder(config: ShopConfig, amount: number, method: DeliveryMethod): ValidationResult {
     if (!Number.isInteger(amount) || amount <= 0) return { ok: false, error: "Jumlah Robux harus berupa angka bulat positif." };
-    if (!enabledMethods(config).includes(method)) return { ok: false, error: `Metode ${METHOD_LABEL[method]} sedang tidak tersedia.` };
+    if (!isMethodEnabled(config, method)) return { ok: false, error: `Metode ${METHOD_LABEL[method]} sedang tidak tersedia.` };
+    // GIG: harga item berubah-ubah, dihitung manual oleh admin; batas min/maks tidak berlaku.
+    if (method === "gift") return { ok: true, robux: amount, price: 0, stockCost: amount };
     if (amount < config.min_order) return { ok: false, error: `Minimal order ${robux(config.min_order)}.` };
     if (amount > config.max_order) return { ok: false, error: `Maksimal order ${robux(config.max_order)}.` };
     const stockCost = stockCostFor(amount);

@@ -14,15 +14,18 @@ import {
 import type { API } from "@discordjs/core";
 import { hasPermission, trim } from "./tools";
 import * as shopDb from "./db";
-import type { Order, OrderStatus, ShopConfig } from "./db";
+import type { DeliveryMethod, Order, OrderStatus, ShopConfig } from "./db";
 import { SHOP_COMMAND_NAMES } from "./commands";
-import { METHODS, METHOD_LABEL, STATUS_LABEL, enabledMethods, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
+import { METHODS, METHOD_LABEL, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
 import {
     instructionsEmbed,
     methodFromValue,
     orderButtons,
     orderEmbed,
     orderModal,
+    buyMethodPicker,
+    gigPriceModal,
+    priceListMessage,
     panelMessage,
     paymentInfoModal,
     priceEmbed,
@@ -120,6 +123,38 @@ async function postToHistory(api: Api, config: ShopConfig, embed: APIEmbed) {
         .catch((err: unknown) => console.log(`[shop] gagal kirim riwayat: ${err}`));
 }
 
+/** Kirim ulang / perbarui pesan daftar harga untuk semua metode yang punya channel. */
+async function refreshPriceLists(api: Api, guildId: string, only?: DeliveryMethod) {
+    const config = await shopDb.getShopConfig(guildId);
+    if (!config) return;
+    for (const pl of await shopDb.getPriceLists(guildId)) {
+        if (only && pl.method !== only) continue;
+        if (methodPrice(config, pl.method) <= 0) {
+            if (pl.message_id) await api.channels.deleteMessage(pl.channel_id, pl.message_id).catch(() => null);
+            await shopDb.deletePriceList(guildId, pl.method);
+            continue;
+        }
+        const body = priceListMessage(config, pl.method);
+        if (pl.message_id) {
+            const ok = await api.channels.editMessage(pl.channel_id, pl.message_id, body).then(() => true).catch(() => false);
+            if (ok) continue;
+        }
+        const msg = await api.channels.createMessage(pl.channel_id, body).catch((err: unknown) => {
+            console.log(`[shop] gagal kirim daftar harga: ${err}`);
+            return null;
+        });
+        await shopDb.savePriceList({ ...pl, message_id: msg?.id ?? null });
+    }
+}
+
+/** Setelah pembayaran dikonfirmasi: kabari pembeli di tiket & catat ke log. */
+async function announceConfirmed(api: Api, config: ShopConfig, updated: Order) {
+    const reminder = updated.method === "login" ? "\n🔐 Admin akan meminta data login di tiket ini. Ingat untuk ganti password setelah selesai." : "";
+    const what = updated.method === "gift" ? "item sedang diproses" : "Robux sedang diproses";
+    await postOrderStatus(api, updated, `⚙️ Pembayaran diterima — ${orderCode(updated.id)}`, `<@${updated.user_id}> pembayaranmu sudah dikonfirmasi, ${what}.${reminder}`);
+    await logToChannel(api, config, orderEmbed(updated, `✅ Pembayaran dikonfirmasi ${orderCode(updated.id)}`));
+}
+
 async function postOrderStatus(api: Api, order: Order, title: string, note?: string) {
     if (!order.channel_id) return;
     await api.channels.createMessage(order.channel_id, {
@@ -196,10 +231,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (v("kategori_tiket") !== undefined) c.ticket_category_id = v("kategori_tiket");
                         if (v("channel_log") !== undefined) c.log_channel_id = v("channel_log");
                         if (v("channel_testimoni") !== undefined) c.testimonial_channel_id = v("channel_testimoni");
-                        if (v("harga_gig") !== undefined) c.price_gift = v("harga_gig");
-                        if (v("harga_username") !== undefined) c.price_username = v("harga_username");
-                        if (v("harga_login") !== undefined) c.price_login = v("harga_login");
-                        if (v("harga_grup") !== undefined) c.price_group = v("harga_grup");
+                        if (v("gig_aktif") !== undefined) c.price_gift = v("gig_aktif") ? 1 : 0;
                         if (v("minimal_order") !== undefined) c.min_order = v("minimal_order");
                         if (v("maksimal_order") !== undefined) c.max_order = v("maksimal_order");
                         if (v("channel_pengumuman") !== undefined) c.announce_channel_id = v("channel_pengumuman");
@@ -223,7 +255,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
                                     `**Log:** ${c.log_channel_id ? `<#${c.log_channel_id}>` : "_belum_"}`,
                                     `**Testimoni:** ${c.testimonial_channel_id ? `<#${c.testimonial_channel_id}>` : "_belum_"}`,
-                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif"}`),
+                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${m === "gift" ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
                                     `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? `<@&${c.ping_role_id}>` : "_tidak ada_"}`,
@@ -233,8 +265,46 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             }],
                         });
                         await refreshPanel(api, guildId);
+                        await refreshPriceLists(api, guildId);
                         if (leaderboardChanged) await refreshLeaderboard(api, guildId);
                         return;
+                    }
+
+                    case "setup-harga": {
+                        if (!config) return say("❌ Jalankan `/toko-setup` dulu.");
+                        const method = getOption(opts, "metode")?.value as Exclude<DeliveryMethod, "gift">;
+                        const harga = Number(getOption(opts, "harga")?.value ?? 0);
+                        const channelOpt = getOption(opts, "channel")?.value as string | undefined;
+                        const existing = await shopDb.getPriceList(guildId, method);
+                        const channelId = channelOpt ?? existing?.channel_id;
+                        if (harga > 0 && !channelId) return say("❌ Pilih **channel** untuk daftar harga (wajib saat pertama kali).");
+
+                        await defer();
+                        await shopDb.setMethodPrice(guildId, method, harga);
+                        const updated = (await shopDb.getShopConfig(guildId))!;
+
+                        if (harga === 0) {
+                            if (existing?.message_id) await api.channels.deleteMessage(existing.channel_id, existing.message_id).catch(() => null);
+                            if (existing) await shopDb.deletePriceList(guildId, method);
+                        } else if (existing && existing.channel_id === channelId && existing.message_id) {
+                            await refreshPriceLists(api, guildId, method);
+                        } else {
+                            // channel baru: hapus daftar lama, kirim yang baru
+                            if (existing?.message_id) await api.channels.deleteMessage(existing.channel_id, existing.message_id).catch(() => null);
+                            const msg = await api.channels.createMessage(channelId!, priceListMessage(updated, method)).catch(() => null);
+                            if (!msg) {
+                                await refreshPanel(api, guildId);
+                                return edit({ content: `⚠️ Harga ${METHOD_LABEL[method]} disimpan, tapi daftar harga gagal dikirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan di sana.` });
+                            }
+                            await shopDb.savePriceList({ guild_id: guildId, method, channel_id: channelId!, message_id: msg.id });
+                        }
+                        await refreshPanel(api, guildId);
+                        await logToChannel(api, updated, { title: "💰 Harga diubah", description: `<@${userId}>: ${METHOD_LABEL[method]} → ${harga ? `${rupiah(harga)} / 100 R$` : "nonaktif"}`, color: 0x95a5a6 });
+                        return edit({
+                            content: harga === 0
+                                ? `🚫 ${METHOD_LABEL[method]} dinonaktifkan dan daftar harganya dihapus.`
+                                : `✅ ${METHOD_LABEL[method]}: ${rupiah(harga)} / 100 R$. Daftar harga ada di <#${channelId}> dan akan otomatis diperbarui.`,
+                        });
                     }
 
                     case "leaderboard": {
@@ -364,7 +434,15 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!config.is_open) return say(`🔴 Toko sedang tutup.${config.close_reason ? `\n> ${config.close_reason}` : ""}`);
                     const open = await shopDb.getOpenOrderForUser(guildId, userId);
                     if (open) return say(`Kamu masih punya pesanan aktif ${orderCode(open.id)}${open.channel_id ? ` di <#${open.channel_id}>` : ""}. Selesaikan atau batalkan dulu.`);
-                    await api.interactions.createModal(interaction.id, interaction.token, orderModal(config));
+                    return reply(buyMethodPicker(config));
+                }
+                if (action === "buym") {
+                    const method = methodFromValue(idStr);
+                    if (!config || !method || !isMethodEnabled(config, method)) return say("Metode ini sedang tidak tersedia.");
+                    if (!config.is_open) return say(`🔴 Toko sedang tutup.${config.close_reason ? `\n> ${config.close_reason}` : ""}`);
+                    const open = await shopDb.getOpenOrderForUser(guildId, userId);
+                    if (open) return say(`Kamu masih punya pesanan aktif ${orderCode(open.id)}${open.channel_id ? ` di <#${open.channel_id}>` : ""}. Selesaikan atau batalkan dulu.`);
+                    await api.interactions.createModal(interaction.id, interaction.token, orderModal(config, method));
                     replied = true;
                     return;
                 }
@@ -380,13 +458,18 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                 switch (action) {
                     case "verify": {
                         if (!admin) return say("❌ Hanya admin yang bisa mengonfirmasi pembayaran.");
-                        const updated = await shopDb.transitionOrder(guildId, orderId, ["menunggu_pembayaran", "menunggu_verifikasi"], "diproses", userId);
+                        if (!["menunggu_pembayaran", "menunggu_verifikasi"].includes(order.status)) return stale();
+                        // GIG: admin mengisi total harga yang dibayar pembeli
+                        if (order.method === "gift") {
+                            await api.interactions.createModal(interaction.id, interaction.token, gigPriceModal(order));
+                            replied = true;
+                            return;
+                        }
+                        const updated = await shopDb.confirmOrder(guildId, orderId, userId);
                         if (!updated) return stale();
                         await say("✅ Pembayaran dikonfirmasi.");
                         await stripButtons();
-                        const reminder = updated.method === "login" ? "\n🔐 Admin akan meminta data login di tiket ini. Ingat untuk ganti password setelah selesai." : "";
-                        await postOrderStatus(api, updated, `⚙️ Pembayaran diterima — ${orderCode(orderId)}`, `<@${updated.user_id}> pembayaranmu sudah dikonfirmasi, Robux sedang diproses.${reminder}`);
-                        await logToChannel(api, config, orderEmbed(updated, `✅ Pembayaran dikonfirmasi ${orderCode(orderId)}`));
+                        await announceConfirmed(api, config, updated);
                         return;
                     }
                     case "done": {
@@ -470,11 +553,13 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!config.is_open) return say(`🔴 Maaf, toko baru saja ditutup.${config.close_reason ? `\n> ${config.close_reason}` : ""}`);
                     const amount = parseAmount(values.amount ?? "");
                     const username = (values.username ?? "").trim();
-                    const method = methodFromValue(values.method);
-                    const note = trim((values.note ?? "").trim(), 200) || null;
+                    const method = methodFromValue(idStr);
+                    const note = method === "gift"
+                        ? trim(`${(values.game ?? "").trim()} — ${(values.item ?? "").trim()}`, 200)
+                        : trim((values.note ?? "").trim(), 200) || null;
 
                     if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return say("❌ Username Roblox tidak valid (3–20 karakter: huruf, angka, underscore).");
-                    if (!method) return say("❌ Pilih metode pengiriman.");
+                    if (!method) return say("❌ Metode pengiriman tidak valid, ulangi dari panel toko.");
                     const check = validateOrder(config, amount, method);
                     if (!check.ok) return say(`❌ ${check.error}`);
 
@@ -502,14 +587,15 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (config.admin_role_id) overwrites.push({ id: config.admin_role_id, type: OverwriteType.Role, allow: (view | PermissionFlagsBits.ManageMessages).toString() });
 
                     const username_ = sanitizeChannelName(member?.user.username ?? "pembeli");
+                    const prefix = order.method === "gift" ? "gig" : "order";
                     let channel: { id: string } | null = null;
                     try {
                         channel = await api.guilds.createChannel(guildId, {
-                            name: `order-${String(order.id).padStart(4, "0")}-${username_}`,
+                            name: `${prefix}-${String(order.id).padStart(4, "0")}-${username_}`,
                             type: ChannelType.GuildText,
                             parent_id: config.ticket_category_id ?? undefined,
                             permission_overwrites: overwrites,
-                            topic: `Pesanan ${orderCode(order.id)} · ${robux(order.robux)} via ${METHOD_LABEL[order.method]} · Pembeli ${userId}`,
+                            topic: `Pesanan ${orderCode(order.id)} · ${robux(order.robux)} via ${METHOD_LABEL[order.method]}${order.method === "gift" && order.note ? ` (${order.note})` : ""} · Pembeli ${userId}`.slice(0, 1024),
                         }, { reason: `Tiket pesanan ${orderCode(order.id)}` });
                     } catch (err) {
                         console.log(`[shop] gagal membuat tiket: ${err}`);
@@ -527,6 +613,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     });
                     await logToChannel(api, config, { ...orderEmbed(withChannel, `🆕 Pesanan baru ${orderCode(order.id)}`), description: `Tiket: <#${channel.id}>` });
                     return edit({ content: `✅ Pesanan ${orderCode(order.id)} dibuat! Lanjutkan di <#${channel.id}>.` });
+                }
+
+                if (kind === "gigprice") {
+                    if (!config || !admin) return say("❌ Hanya admin yang bisa mengonfirmasi pembayaran.");
+                    const price = parseAmount(values.price ?? "");
+                    if (!Number.isInteger(price) || price <= 0) return say("❌ Total harga harus berupa angka Rupiah, contoh `65000`.");
+                    const updated = await shopDb.confirmOrder(guildId, Number(idStr), userId, price);
+                    if (!updated) return say("Status pesanan sudah berubah, konfirmasi dibatalkan.");
+                    await say(`✅ Pembayaran GIG dikonfirmasi: ${rupiah(price)}.`);
+                    const msg = (interaction as any).message;
+                    if (msg?.id) await api.channels.editMessage(msg.channel_id, msg.id, { components: [] }).catch(() => null);
+                    await announceConfirmed(api, config, updated);
+                    return;
                 }
 
                 if (kind === "testi") {

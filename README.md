@@ -11,9 +11,11 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🟢🔴 Buka/tutup | `/open` dan `/close [alasan]` secara manual. Pengumuman OPEN/CLOSE otomatis (ping role saat buka), tombol Beli nonaktif saat tutup, dan nama channel panel berganti 🟢/🔴 |
 | 🛒 Panel toko | Pesan dengan tombol **Beli Robux / Cek Harga**, otomatis diperbarui saat harga atau status toko berubah |
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
-| 🚚 4 metode | 🎁 **Gift In Game**, 👥 **Group Payout**, 👤 **Via Username**, 🔐 **Via Login**, masing-masing dengan harga sendiri. Metode berharga `0` otomatis disembunyikan |
+| 🚚 4 metode | 🔐 **Via Login**, 👤 **Via Send Username**, 👥 **Group Payout** (harga tetap per 100 R$) dan 🎁 **Gift In Game / GIG** (harga dihitung manual oleh admin) |
+| 💰 Daftar harga | `/setup-harga` mengatur harga satu metode dan mengirim daftar harga (`⏣ 100 Robux — Rp 15.500` … `⏣ 5.000 Robux`) ke channel pilihan. Daftar otomatis diperbarui saat harga diubah |
+| 🎁 Order GIG | Form khusus: nama map/game, nama item, jumlah Robux, username. Saat konfirmasi bayar, admin mengisi total harga secara manual |
 | 💳 Bayar manual | Pembeli kirim foto bukti transfer langsung di chat tiket, admin cek lalu klik **Konfirmasi Bayar** |
-| 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode |
+| 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode berharga tetap |
 | 🏅 Loyalitas | Role otomatis berdasarkan total Robux yang pernah dibeli |
 | 💎 Vouch | Setelah selesai, pembeli kirim rating + ulasan; tampil sebagai **NEW VOUCH** lengkap dengan avatar, nominal, dan status |
 | ⭐ Riwayat transaksi | Channel publik berisi **Transaksi selesai** (pembeli, jenis order, nominal, total transaksi pembeli, admin yang memproses) dan **Tiket Ditutup** |
@@ -24,12 +26,13 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 ## Alur pesanan
 
 ```
-Pembeli klik 🛒 Beli Robux → isi form (jumlah, username, metode, catatan)
+Pembeli klik 🛒 Beli Robux → pilih metode → isi form
+        (GIG: map/game, item, jumlah Robux, username | lainnya: jumlah, username, catatan)
         ↓
 Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
         ↓  pembeli transfer & kirim foto bukti di chat tiket
         ↓  admin cek bukti, klik ✅ Konfirmasi Bayar
-⚙️ Diproses  (admin mengirim Robux sesuai metode)
+⚙️ Diproses  (admin mengirim Robux/item sesuai metode; untuk GIG admin mengisi total harga saat konfirmasi)
         ↓  admin: Robux Terkirim (Selesai)
 ✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket
 ```
@@ -42,7 +45,8 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 
 | Perintah | Fungsi |
 |---|---|
-| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, harga per 100 R$ tiap metode (Gift In Game, Group Payout, Via Username, Via Login), min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya. Harga `0` = metode nonaktif |
+| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, GIG aktif/nonaktif, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya |
+| `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
@@ -70,8 +74,9 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
    Atau dengan Docker: `docker compose up -d --build`.
 4. **Di server**:
    - Buat kategori `🎫 TIKET` dan role `Admin Toko`.
-   - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni harga_gig:13000 harga_grup:11000 harga_username:12000 harga_login:9000 minimal_order:100 maksimal_order:20000`
+   - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni minimal_order:100 maksimal_order:20000`
    - `/toko-pembayaran`, lalu isi rekening/e-wallet/QRIS.
+   - `/setup-harga metode:Via Send Username harga:15500 channel:#pricelist` (ulangi untuk Via Login dan Group Payout)
    - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
    - (opsional) `/loyalitas atur role:@Pelanggan Setia minimal_robux:5000`
    - Di channel toko: `/toko-panel`

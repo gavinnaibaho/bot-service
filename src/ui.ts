@@ -15,9 +15,13 @@ import {
     METHOD_LABEL,
     STATUS_COLOR,
     STATUS_LABEL,
+    PRICED_METHODS,
+    PRICE_TIERS,
     enabledMethods,
+    isMethodEnabled,
     methodLabel,
     methodPrice,
+    rupiahList,
     orderCode,
     priceFor,
     robux,
@@ -42,7 +46,9 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 export function panelMessage(config: ShopConfig) {
     const methods = enabledMethods(config);
-    const lines: string[] = methods.map((m) => `${methodLabel(m).replace(" ", " **")}:** ${rupiah(methodPrice(config, m))} / 100 R$`);
+    const lines: string[] = methods.map((m) => m === "gift"
+        ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** harga menyesuaikan item`
+        : `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** ${rupiah(methodPrice(config, m))} / 100 R$`);
     if (lines.length === 0) lines.push("_Harga belum diatur oleh admin._");
 
     const status = config.is_open
@@ -127,7 +133,7 @@ export function historyCompletedEmbed(order: Order, buyer: UserLike, admin: User
         thumbnail: { url: avatarUrl(buyer) },
         fields: [
             { name: "Pembeli", value: `<@${buyer.id}>\n\`${buyer.username}\``, inline: false },
-            { name: "Jenis order", value: `🎮 ${robux(order.robux)} via ${METHOD_LABEL[order.method]}`, inline: false },
+            { name: "Jenis order", value: orderSummary(order), inline: false },
             { name: "Nominal", value: `**${rupiah(order.price)}**`, inline: true },
             { name: "Total transaksi", value: rupiah(userTotalSpent), inline: true },
         ],
@@ -165,7 +171,7 @@ export function vouchMessage(order: Order, buyer: UserLike, rating: number, revi
                 `✅ **${rating} / 5** ${"⭐".repeat(rating)}`,
                 line,
                 `▫️ **Pembeli :** <@${buyer.id}>`,
-                `▫️ **Order :** 🎮 ${robux(order.robux)} via ${METHOD_LABEL[order.method]}`,
+                `▫️ **Order :** ${orderSummary(order)}`,
                 `▫️ **Nominal :** ${rupiah(order.price)}`,
                 `▫️ **Status :** Selesai ✅`,
                 line,
@@ -203,17 +209,18 @@ export function statusChannelName(current: string, open: boolean): string {
 // ---------- Kalkulator ----------
 
 export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
-    const methods = enabledMethods(config);
+    const methods = enabledMethods(config).filter((m) => m !== "gift");
     const fields = methods.map((m) => {
         const price = priceFor(amount, methodPrice(config, m));
         return { name: methodLabel(m), value: `**${rupiah(price)}**`, inline: true };
     });
+    if (isMethodEnabled(config, "gift")) fields.push({ name: methodLabel("gift"), value: "Harga dihitung admin sesuai item", inline: false });
     const warnings: string[] = [];
     if (amount < config.min_order) warnings.push(`⚠️ Di bawah minimal order (${robux(config.min_order)}).`);
     if (amount > config.max_order) warnings.push(`⚠️ Di atas maksimal order (${robux(config.max_order)}).`);
     return {
         title: `🧮 Harga untuk ${robux(amount)}`,
-        description: methods.length === 0 ? "Harga belum diatur oleh admin." : warnings.join("\n") || undefined,
+        description: fields.length === 0 ? "Harga belum diatur oleh admin." : warnings.join("\n") || undefined,
         fields,
         color: BRAND_COLOR,
     };
@@ -221,49 +228,112 @@ export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
 
 // ---------- Modal ----------
 
-export function orderModal(config: ShopConfig): APIModalInteractionResponseCallbackData {
+/** Balasan tombol "Beli Robux": pilih metode dulu, lalu form sesuai metode. */
+export function buyMethodPicker(config: ShopConfig) {
     const methods = enabledMethods(config);
+    const lines = methods.map((m) => m === "gift"
+        ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}**: ${METHOD_HINT[m]}`
+        : `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}**: ${rupiah(methodPrice(config, m))} / 100 R$ · ${METHOD_HINT[m]}`);
+    const buttons = methods.map((m) => button(`shop:buym:${m}`, METHOD_LABEL[m], m === "gift" ? ButtonStyle.Primary : ButtonStyle.Success, METHOD_EMOJI[m]));
+    const rows: Row[] = [];
+    for (let i = 0; i < buttons.length; i += 5) rows.push(row(...buttons.slice(i, i + 5)));
     return {
-        title: "Beli Robux",
-        custom_id: "shop_modal:order",
+        embeds: [{ title: "🛒 Pilih Metode Pengiriman", description: lines.join("\n"), color: BRAND_COLOR }] as APIEmbed[],
+        components: rows,
+    };
+}
+
+export function orderModal(config: ShopConfig, method: DeliveryMethod): APIModalInteractionResponseCallbackData {
+    const usernameField = {
+        type: ComponentType.Label as const,
+        label: "Username Roblox",
+        component: { type: ComponentType.TextInput as const, custom_id: "username", style: TextInputStyle.Short, placeholder: "username kamu (bukan display name)", min_length: 3, max_length: 20, required: true },
+    };
+    if (method === "gift") {
+        return {
+            title: "Order Gift In Game (GIG)",
+            custom_id: "shop_modal:order:gift",
+            components: [
+                {
+                    type: ComponentType.Label,
+                    label: "Nama Map / Game",
+                    component: { type: ComponentType.TextInput, custom_id: "game", style: TextInputStyle.Short, placeholder: "contoh: Blox Fruits", min_length: 2, max_length: 80, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Nama Item",
+                    component: { type: ComponentType.TextInput, custom_id: "item", style: TextInputStyle.Short, placeholder: "contoh: Gamepass 2x Mastery", min_length: 2, max_length: 100, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Jumlah Robux",
+                    description: "Harga item dalam Robux (lihat di dalam game)",
+                    component: { type: ComponentType.TextInput, custom_id: "amount", style: TextInputStyle.Short, placeholder: "contoh: 450", min_length: 1, max_length: 10, required: true },
+                },
+                usernameField,
+            ],
+        };
+    }
+    return {
+        title: `Beli Robux · ${METHOD_LABEL[method]}`.slice(0, 45),
+        custom_id: `shop_modal:order:${method}`,
         components: [
             {
                 type: ComponentType.Label,
                 label: "Jumlah Robux",
-                description: `Robux bersih yang kamu terima (${robux(config.min_order)} – ${robux(config.max_order)})`,
+                description: `${rupiah(methodPrice(config, method))} / 100 R$ · min ${robux(config.min_order)}, maks ${robux(config.max_order)}`.slice(0, 100),
                 component: { type: ComponentType.TextInput, custom_id: "amount", style: TextInputStyle.Short, placeholder: "contoh: 1000", min_length: 1, max_length: 10, required: true },
             },
-            {
-                type: ComponentType.Label,
-                label: "Username Roblox",
-                component: { type: ComponentType.TextInput, custom_id: "username", style: TextInputStyle.Short, placeholder: "username kamu (bukan display name)", min_length: 3, max_length: 20, required: true },
-            },
-            {
-                type: ComponentType.Label,
-                label: "Metode Pengiriman",
-                component: {
-                    type: ComponentType.StringSelect,
-                    custom_id: "method",
-                    min_values: 1,
-                    max_values: 1,
-                    required: true,
-                    options: methods.map((m, i) => ({
-                        label: METHOD_LABEL[m],
-                        value: m,
-                        emoji: { name: METHOD_EMOJI[m] },
-                        description: `${rupiah(methodPrice(config, m))} / 100 R$ — ${METHOD_HINT[m]}`.slice(0, 100),
-                        default: i === 0,
-                    })),
-                },
-            },
+            usernameField,
             {
                 type: ComponentType.Label,
                 label: "Catatan (opsional)",
-                description: "Gift In Game: tulis nama game & item. Metode lain: info tambahan untuk admin.",
-                component: { type: ComponentType.TextInput, custom_id: "note", style: TextInputStyle.Short, placeholder: "contoh: Blox Fruits — Gamepass 2x Mastery", max_length: 200, required: false },
+                component: { type: ComponentType.TextInput, custom_id: "note", style: TextInputStyle.Short, placeholder: "info tambahan untuk admin", max_length: 200, required: false },
             },
         ],
     };
+}
+
+/** Modal admin untuk mengisi total harga GIG saat konfirmasi pembayaran. */
+export function gigPriceModal(order: Order): APIModalInteractionResponseCallbackData {
+    return {
+        title: `Konfirmasi GIG ${orderCode(order.id)}`,
+        custom_id: `shop_modal:gigprice:${order.id}`,
+        components: [
+            {
+                type: ComponentType.Label,
+                label: "Total harga yang dibayar (Rupiah)",
+                description: `${order.note ?? "GIG"} · ${robux(order.robux)}`.slice(0, 100),
+                component: {
+                    type: ComponentType.TextInput, custom_id: "price", style: TextInputStyle.Short, placeholder: "contoh: 65000",
+                    value: order.price > 0 ? String(order.price) : undefined, min_length: 1, max_length: 12, required: true,
+                },
+            },
+        ],
+    };
+}
+
+/** Daftar harga satu metode, format: "⏣ 100 Robux — Rp 15.500". */
+export function priceListMessage(config: ShopConfig, method: DeliveryMethod) {
+    const per100 = methodPrice(config, method);
+    const tiers = PRICE_TIERS.filter((t) => t >= config.min_order && t <= config.max_order);
+    const lines = (tiers.length ? tiers : PRICE_TIERS).map((t) => `⏣ ${t.toLocaleString("id-ID")} Robux — ${rupiahList(priceFor(t, per100))}`);
+    return {
+        embeds: [{
+            title: `${METHOD_EMOJI[method]} ${METHOD_LABEL[method]}`,
+            description: lines.join("\n") + "\n\n-# Jumlah lain? Cek dengan `/harga`. Order lewat panel toko 🛒",
+            color: BRAND_COLOR,
+            footer: { text: `${config.store_name} • Harga dapat berubah sewaktu-waktu` },
+            timestamp: new Date().toISOString(),
+        }] as APIEmbed[],
+        allowed_mentions: { parse: [] as [] },
+    };
+}
+
+/** Ringkasan order untuk vouch & riwayat. */
+export function orderSummary(order: Order): string {
+    if (order.method === "gift") return `🎁 GIG Roblox${order.note ? ` · ${order.note}` : ""} (${robux(order.robux)})`;
+    return `🎮 ${robux(order.robux)} via ${METHOD_LABEL[order.method]}`;
 }
 
 export function paymentInfoModal(current: string | null): APIModalInteractionResponseCallbackData {
@@ -323,10 +393,10 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
         { name: "Username Roblox", value: `\`${order.roblox_username}\``, inline: true },
         { name: "Metode", value: methodLabel(order.method), inline: true },
         { name: "Jumlah", value: robux(order.robux), inline: true },
-        { name: "Total Bayar", value: `**${rupiah(order.price)}**`, inline: true },
+        { name: "Total Bayar", value: order.price > 0 ? `**${rupiah(order.price)}**` : "_dihitung admin_", inline: true },
         { name: "Status", value: STATUS_LABEL[order.status], inline: true },
     ];
-    if (order.note) fields.push({ name: "Catatan", value: order.note, inline: false });
+    if (order.note) fields.push({ name: order.method === "gift" ? "Map / Item" : "Catatan", value: order.note, inline: false });
     if (order.handled_by) fields.push({ name: "Ditangani oleh", value: `<@${order.handled_by}>`, inline: true });
     return {
         title: title ?? `Pesanan ${orderCode(order.id)}`,
@@ -338,11 +408,16 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
 
 export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     const steps: string[] = [];
-    steps.push(`**1. Bayar ${rupiah(order.price)}** ke salah satu metode di bawah.`);
-    steps.push("**2. Kirim foto bukti transfer** langsung di chat tiket ini.");
+    if (order.method === "gift") {
+        steps.push("**1. Tunggu admin menghitung harga** item kamu dan menyebutkan totalnya di tiket ini.");
+        steps.push("**2. Bayar sesuai total dari admin**, lalu kirim foto bukti transfer di chat tiket ini.");
+    } else {
+        steps.push(`**1. Bayar ${rupiah(order.price)}** ke salah satu metode di bawah.`);
+        steps.push("**2. Kirim foto bukti transfer** langsung di chat tiket ini.");
+    }
     switch (order.method) {
         case "gift":
-            steps.push("**3. Tulis nama game & item** yang ingin dikirim sebagai gift (kalau belum diisi di form). Admin akan mengirim gift ke akun Roblox kamu di dalam game tersebut.");
+            steps.push("**3. Admin akan mengirim item** sebagai gift ke akun Roblox kamu di dalam map/game tersebut. Pastikan nama map, item, dan username sudah benar.");
             break;
         case "group":
             steps.push("**3. Pastikan kamu sudah bergabung ke grup Roblox toko** dan memenuhi syarat payout dari Roblox. Tanya admin jika belum tahu grupnya.");

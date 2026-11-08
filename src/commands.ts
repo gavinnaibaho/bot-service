@@ -18,7 +18,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
     // ---------- Admin ----------
     {
         name: "toko-setup",
-        description: "Atur toko Robux: role admin, kategori tiket, channel log & testimoni, harga",
+        description: "Atur toko Robux: role admin, kategori tiket, channel log, testimoni, riwayat, dll.",
         type: ApplicationCommandType.ChatInput,
         default_member_permissions: ADMIN,
         ...guildOnly,
@@ -27,10 +27,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             { type: ApplicationCommandOptionType.Channel, name: "kategori_tiket", description: "Kategori tempat channel tiket dibuat", channel_types: [ChannelType.GuildCategory] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_log", description: "Channel log transaksi (khusus admin)", channel_types: [ChannelType.GuildText] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_testimoni", description: "Channel publik untuk vouch/testimoni", channel_types: [ChannelType.GuildText] },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_gig", description: "Harga Rupiah per 100 Robux via Gift In Game (0 = nonaktif)", min_value: 0 },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_grup", description: "Harga Rupiah per 100 Robux via Group Payout (0 = nonaktif)", min_value: 0 },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_username", description: "Harga Rupiah per 100 Robux via Username (0 = nonaktif)", min_value: 0 },
-            { type: ApplicationCommandOptionType.Integer, name: "harga_login", description: "Harga Rupiah per 100 Robux via Login (0 = nonaktif)", min_value: 0 },
+            { type: ApplicationCommandOptionType.Boolean, name: "gig_aktif", description: "Terima order Gift In Game (GIG)? Harga GIG dihitung manual oleh admin" },
             { type: ApplicationCommandOptionType.Integer, name: "minimal_order", description: "Minimal Robux per order", min_value: 1 },
             { type: ApplicationCommandOptionType.Integer, name: "maksimal_order", description: "Maksimal Robux per order", min_value: 1 },
             { type: ApplicationCommandOptionType.Channel, name: "channel_pengumuman", description: "Channel untuk pengumuman toko buka/tutup", channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement] },
@@ -56,6 +53,25 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ...guildOnly,
         options: [
             { type: ApplicationCommandOptionType.String, name: "alasan", description: "contoh: Istirahat, buka lagi jam 19.00 WIB", max_length: 200 },
+        ],
+    },
+    {
+        name: "setup-harga",
+        description: "Atur harga per 100 Robux untuk satu metode dan kirim daftar harganya ke channel",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            {
+                type: ApplicationCommandOptionType.String, name: "metode", description: "Metode pengiriman", required: true,
+                choices: [
+                    { name: "Via Login", value: "login" },
+                    { name: "Via Send Username", value: "username" },
+                    { name: "Group Payout", value: "group" },
+                ],
+            },
+            { type: ApplicationCommandOptionType.Integer, name: "harga", description: "Harga Rupiah per 100 Robux, contoh 15500 (0 = nonaktifkan metode ini)", required: true, min_value: 0 },
+            { type: ApplicationCommandOptionType.Channel, name: "channel", description: "Channel tempat daftar harga dikirim (wajib saat pertama kali)", channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement] },
         ],
     },
     {

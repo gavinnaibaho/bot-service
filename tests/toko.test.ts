@@ -26,13 +26,16 @@ assert(got!.admin_role_id === "333333333333333333" && got!.price_group === 11000
 assert(JSON.stringify(p.enabledMethods(got!)) === JSON.stringify(["gift", "group", "login"]), "metode dengan harga 0 disembunyikan");
 assert(!p.validateOrder(got!, 1000, "username").ok, "metode nonaktif ditolak");
 assert((p.validateOrder(got!, 1000, "login") as any).price === 90000, "harga via login");
-let v = p.validateOrder(got!, 50000, "gift");
-assert(v.ok, "order besar tidak dibatasi stok");
-v = p.validateOrder(got!, 1000, "gift");
-assert(v.ok && v.stockCost === 1000 && v.price === 130000, "validasi 1000 gift in game");
+let v = p.validateOrder(got!, 500000, "gift");
+assert(v.ok && v.price === 0, "GIG tidak dibatasi min/maks dan harganya 0 (dihitung admin)");
+v = p.validateOrder(got!, 50, "gift");
+assert(v.ok, "GIG boleh di bawah minimal order");
+assert(p.methodPrice(got!, "gift") === 0, "GIG tidak punya tarif per 100");
+assert(p.priceFor(500, 15500) === 77500 && p.priceFor(5000, 15500) === 775000, "daftar harga 15.500/100");
+assert(p.rupiahList(15500) === "Rp 15.500", "format Rp dengan spasi");
 assert(!p.validateOrder(got!, 50, "group").ok, "di bawah minimal");
 
-const o = await s.createOrder({ guild_id: G, user_id: U, robux: 1000, price: 130000, stock_cost: 1000, method: "gift", roblox_username: "builderman", note: "Blox Fruits - 2x Mastery" });
+const o = await s.createOrder({ guild_id: G, user_id: U, robux: 1000, price: 0, stock_cost: 1000, method: "gift", roblox_username: "builderman", note: "Blox Fruits - 2x Mastery" });
 assert(o.id === 1 && o.status === "menunggu_pembayaran" && o.method === "gift" && o.note === "Blox Fruits - 2x Mastery", "buat order dengan catatan");
 assert((await s.getOpenOrderForUser(G, U))?.id === 1, "order aktif terdeteksi");
 await s.setOrderChannel(o.id, "444444444444444444");
@@ -40,8 +43,9 @@ assert((await s.getOrderByChannel("444444444444444444"))?.id === 1, "cari order 
 assert(await s.transitionOrder(G, 1, ["diproses"], "selesai") === null, "transisi ilegal ditolak");
 assert(await s.completeOrder(G, 1, "a") === null, "tidak bisa selesai sebelum diproses");
 assert((await s.transitionOrder(G, 1, ["menunggu_pembayaran"], "menunggu_verifikasi"))?.status === "menunggu_verifikasi", "-> menunggu_verifikasi");
-assert((await s.transitionOrder(G, 1, ["menunggu_pembayaran","menunggu_verifikasi"], "diproses", "555"))?.handled_by === "555", "-> diproses");
-assert(await s.transitionOrder(G, 1, ["menunggu_pembayaran","menunggu_verifikasi"], "diproses", "555") === null, "klik ganda ditolak");
+const confirmed = await s.confirmOrder(G, 1, "555", 130000);
+assert(confirmed?.status === "diproses" && confirmed?.handled_by === "555" && confirmed?.price === 130000, "konfirmasi GIG dengan harga manual");
+assert(await s.confirmOrder(G, 1, "555", 1) === null, "klik ganda ditolak");
 const done = await s.completeOrder(G, 1, "555");
 assert(done?.status === "selesai" && done?.handled_by === "555", "selesai");
 assert(await s.completeOrder(G, 1, "555") === null, "selesai dua kali ditolak");
@@ -90,4 +94,15 @@ assert(lb.length === 2 && lb[0]!.user_id === U2 && lb[0]!.spent === 260000 && lb
 const totals = await s.getGlobalTotals(G);
 assert(totals.customers === 2 && totals.spending === 390000 && totals.orders === 2, "total customer & spending (pesanan batal tidak dihitung)");
 assert(await s.getUserTotalSpent(G, U) === 130000, "total belanja per user");
+
+// daftar harga per metode
+await s.setMethodPrice(G, "username", 15500);
+assert((await s.getShopConfig(G))!.price_username === 15500, "setMethodPrice username");
+await s.savePriceList({ guild_id: G, method: "username", channel_id: "c1", message_id: "m1" });
+await s.savePriceList({ guild_id: G, method: "username", channel_id: "c2", message_id: "m2" });
+const pls = await s.getPriceLists(G);
+assert(pls.length === 1 && pls[0]!.channel_id === "c2" && (await s.getPriceList(G, "username"))!.message_id === "m2", "simpan/ganti daftar harga");
+await s.deletePriceList(G, "username");
+assert((await s.getPriceList(G, "username")) === null, "hapus daftar harga");
+assert(s.defaultConfig("x").price_gift === 1, "GIG aktif secara default");
 });
