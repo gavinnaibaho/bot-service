@@ -107,6 +107,16 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "kirim-pesan",
+        description: "Kirim pesan teks biasa atas nama bot (tanpa kotak embed)",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.Channel, name: "channel", description: "Channel tujuan (default: channel ini)", channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement] },
+        ],
+    },
+    {
         name: "toko-pembayaran",
         description: "Atur info pembayaran (rekening, e-wallet, link QRIS) yang ditampilkan di tiket",
         type: ApplicationCommandType.ChatInput,

@@ -53,6 +53,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
 | `/announce [channel] [ping] [role] [warna]` | Kirim pengumuman penting lewat form. Channel default = channel pengumuman toko |
+| `/kirim-pesan [channel]` | Kirim pesan teks biasa atas nama bot (tanpa embed), maks. 2000 karakter |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |
 | `/toko-statistik` | Panel admin |

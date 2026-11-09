@@ -29,6 +29,7 @@ import {
     gigPriceModal,
     priceListMessage,
     announceModal,
+    plainMessageModal,
     announceMessage,
     rolePing,
     panelMessage,
@@ -363,6 +364,14 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
                     }
 
+                    case "kirim-pesan": {
+                        const channelId = (getOption(opts, "channel")?.value as string | undefined) ?? interaction.channel?.id;
+                        if (!channelId) return say("❌ Pilih channel tujuan.");
+                        await api.interactions.createModal(interaction.id, interaction.token, plainMessageModal(channelId));
+                        replied = true;
+                        return;
+                    }
+
                     case "toko-pembayaran":
                         await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null));
                         replied = true;
@@ -601,6 +610,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
             if (interaction.type === InteractionType.ModalSubmit) {
                 const [, kind, idStr] = interaction.data.custom_id.split(":");
                 const values = modalValues(interaction.data.components as any[]);
+
+                if (kind === "say") {
+                    if (!admin) return say("❌ Hanya admin.");
+                    const body = (values.body ?? "").trim().slice(0, 2000);
+                    if (!body) return say("❌ Pesan kosong.");
+                    const msg = await api.channels.createMessage(idStr!, { content: body, allowed_mentions: { parse: [] } }).catch((err: unknown) => {
+                        console.log(`[shop] gagal kirim pesan: ${err}`);
+                        return null;
+                    });
+                    if (!msg) return say(`❌ Gagal mengirim ke <#${idStr}>. Pastikan bot bisa melihat & mengirim pesan di sana.`);
+                    if (config) await logToChannel(api, config, { title: "✉️ Pesan dikirim sebagai bot", description: `<@${userId}> di <#${idStr}>`, color: 0x95a5a6 });
+                    return say(`✅ Pesan terkirim ke <#${idStr}>.`);
+                }
 
                 if (kind === "announce") {
                     if (!admin) return say("❌ Hanya admin.");

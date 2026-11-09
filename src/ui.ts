@@ -466,6 +466,22 @@ export function announceModal(channelId: string, ping: string, roleId: string, c
     };
 }
 
+/** Form pesan teks biasa dari bot. */
+export function plainMessageModal(channelId: string): APIModalInteractionResponseCallbackData {
+    return {
+        title: "Kirim Pesan sebagai Bot",
+        custom_id: `shop_modal:say:${channelId}`,
+        components: [
+            {
+                type: ComponentType.Label,
+                label: "Isi pesan",
+                description: "Maks. 2000 karakter. Format Discord (**tebal**, > kutipan, emoji, link) bisa dipakai.",
+                component: { type: ComponentType.TextInput, custom_id: "body", style: TextInputStyle.Paragraph, placeholder: "Tulis pesan di sini…", max_length: 2000, required: true },
+            },
+        ],
+    };
+}
+
 export function announceMessage(store: string, title: string, body: string, color: number, image: string | null, pingContent: string | undefined, allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] }) {
     return {
         content: pingContent,
