@@ -100,15 +100,40 @@ async function logToChannel(api: Api, config: ShopConfig, embed: APIEmbed, files
     } as any).catch((err: unknown) => console.log(`[shop] gagal kirim log: ${err}`));
 }
 
-async function refreshPanel(api: Api, guildId: string) {
+/** Kirim panel baru di channel panel lalu hapus panel lama. */
+async function repostPanel(api: Api, config: ShopConfig): Promise<boolean> {
+    if (!config.panel_channel_id) return false;
+    const msg = await api.channels.createMessage(config.panel_channel_id, panelMessage(config)).catch((err: unknown) => {
+        console.log(`[shop] gagal kirim ulang panel: ${err}`);
+        return null;
+    });
+    if (!msg) return false;
+    if (config.panel_message_id && config.panel_message_id !== msg.id) {
+        await api.channels.deleteMessage(config.panel_channel_id, config.panel_message_id).catch(() => null);
+    }
+    await shopDb.saveShopConfig({ ...config, panel_message_id: msg.id });
+    return true;
+}
+
+/**
+ * Perbarui panel toko.
+ * - repost = true (dipakai /open & /close): hapus panel lama, kirim panel baru.
+ * - selain itu: edit pesan yang ada; kalau gagal, kirim ulang.
+ */
+async function refreshPanel(api: Api, guildId: string, repost = false) {
     const config = await shopDb.getShopConfig(guildId);
-    if (!config?.panel_channel_id || !config.panel_message_id) return;
+    if (!config?.panel_channel_id) return;
+    if (repost || !config.panel_message_id) {
+        await repostPanel(api, config);
+        return;
+    }
+    // Flag Components V2 tidak boleh dikirim ulang saat edit, jadi dibuang.
+    const { flags: _flags, ...body } = panelMessage(config);
     try {
-        await api.channels.editMessage(config.panel_channel_id, config.panel_message_id, panelMessage(config));
+        await api.channels.editMessage(config.panel_channel_id, config.panel_message_id, body);
     } catch (err) {
-        // panel sudah dihapus / format lama tidak bisa diubah: lupakan, kirim ulang dengan /toko-panel
-        console.log(`[shop] panel lama tidak bisa diperbarui: ${err}`);
-        await shopDb.saveShopConfig({ ...config, panel_channel_id: null, panel_message_id: null });
+        console.log(`[shop] panel tidak bisa diedit, kirim ulang: ${err}`);
+        await repostPanel(api, config);
     }
 }
 
@@ -344,7 +369,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const updated: ShopConfig = { ...config, is_open: open, close_reason: reason };
                         await say(open ? "🟢 Toko dibuka." : `🔴 Toko ditutup.${reason ? ` Alasan: ${reason}` : ""}`);
 
-                        await refreshPanel(api, guildId);
+                        await refreshPanel(api, guildId, true); // kirim ulang panel (hapus yang lama)
                         if (updated.announce_channel_id) {
                             await api.channels.createMessage(updated.announce_channel_id, storeAnnouncement(updated, open, reason)).catch((err: unknown) => console.log(`[shop] gagal kirim pengumuman: ${err}`));
                         }
