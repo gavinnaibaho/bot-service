@@ -194,6 +194,19 @@ CREATE TABLE IF NOT EXISTS shop_pricelists (
             await tx`ALTER TABLE shop_config ADD COLUMN brand_color INTEGER NOT NULL DEFAULT 16748487`;
         },
     },
+    {
+        version: 9,
+        name: "channel status layanan",
+        up: async (tx) => {
+            await tx`
+CREATE TABLE IF NOT EXISTS shop_status_channels (
+  guild_id VARCHAR(20) NOT NULL,
+  status_key VARCHAR(16) NOT NULL,
+  channel_id VARCHAR(20) NOT NULL,
+  PRIMARY KEY (guild_id, status_key)
+)`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -575,6 +588,30 @@ export async function setMethodPrice(guild_id: string, method: Exclude<DeliveryM
     if (method === "login") await db`UPDATE shop_config SET price_login = ${price} WHERE guild_id = ${guild_id}`;
     else if (method === "username") await db`UPDATE shop_config SET price_username = ${price} WHERE guild_id = ${guild_id}`;
     else await db`UPDATE shop_config SET price_group = ${price} WHERE guild_id = ${guild_id}`;
+}
+
+// ---------- Channel status ----------
+
+/** "toko" = status toko buka/tutup, selain itu kunci metode layanan. */
+export type StatusKey = "toko" | DeliveryMethod;
+export type StatusChannel = { status_key: StatusKey; channel_id: string };
+
+export async function getStatusChannels(guild_id: string): Promise<StatusChannel[]> {
+    const rows = await db`SELECT * FROM shop_status_channels WHERE guild_id = ${guild_id}`;
+    return rows.map((r: any) => ({ status_key: r.status_key, channel_id: String(r.channel_id) }));
+}
+
+export async function setStatusChannel(guild_id: string, key: StatusKey, channel_id: string) {
+    await db`
+    INSERT INTO shop_status_channels (guild_id, status_key, channel_id) VALUES (${guild_id}, ${key}, ${channel_id})
+    ON CONFLICT(guild_id, status_key) DO UPDATE SET channel_id = excluded.channel_id`;
+}
+
+export async function deleteStatusChannel(guild_id: string, key: StatusKey): Promise<boolean> {
+    const [row] = await db`SELECT 1 AS x FROM shop_status_channels WHERE guild_id = ${guild_id} AND status_key = ${key}`;
+    if (!row) return false;
+    await db`DELETE FROM shop_status_channels WHERE guild_id = ${guild_id} AND status_key = ${key}`;
+    return true;
 }
 
 // ---------- Loyalitas ----------

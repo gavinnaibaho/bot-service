@@ -45,6 +45,7 @@ import {
     leaderboardEmbed,
     type UserLike,
     statusChannelName,
+    serviceStatusChannelName,
 } from "./ui";
 
 type Api = API;
@@ -100,6 +101,29 @@ async function logToChannel(api: Api, config: ShopConfig, embed: APIEmbed, files
     } as any).catch((err: unknown) => console.log(`[shop] gagal kirim log: ${err}`));
 }
 
+/**
+ * Ganti nama channel status (🟢/🔴) sesuai status toko & layanan.
+ * Layanan dianggap tersedia hanya jika aktif DAN toko sedang buka.
+ * Discord membatasi ganti nama ±2x per 10 menit per channel, jadi dijalankan di background.
+ */
+function syncStatusChannels(api: Api, guildId: string) {
+    (async () => {
+        const config = await shopDb.getShopConfig(guildId);
+        if (!config) return;
+        for (const sc of await shopDb.getStatusChannels(guildId)) {
+            const isStore = sc.status_key === "toko";
+            const on = isStore ? config.is_open : config.is_open && isMethodEnabled(config, sc.status_key as DeliveryMethod);
+            const ch: any = await api.channels.get(sc.channel_id).catch(() => null);
+            if (!ch?.name) continue;
+            const name = serviceStatusChannelName(ch.name, on, isStore);
+            if (name !== ch.name) {
+                await api.channels.edit(sc.channel_id, { name }, { reason: "Status layanan toko" })
+                    .catch((err: unknown) => console.log(`[shop] gagal ganti nama channel status: ${err}`));
+            }
+        }
+    })().catch((err) => console.log(`[shop] sync status channel: ${err}`));
+}
+
 /** Kirim panel baru di channel panel lalu hapus panel lama. */
 async function repostPanel(api: Api, config: ShopConfig): Promise<boolean> {
     if (!config.panel_channel_id) return false;
@@ -121,6 +145,7 @@ async function repostPanel(api: Api, config: ShopConfig): Promise<boolean> {
  * - selain itu: edit pesan yang ada; kalau gagal, kirim ulang.
  */
 async function refreshPanel(api: Api, guildId: string, repost = false) {
+    syncStatusChannels(api, guildId);
     const config = await shopDb.getShopConfig(guildId);
     if (!config?.panel_channel_id) return;
     if (repost || !config.panel_message_id) {
@@ -429,6 +454,26 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         await refreshLeaderboard(api, guildId);
                         if (config) await logToChannel(api, config, { title: "♻️ Data pesanan direset", description: `${removed} pesanan dihapus oleh <@${userId}>. Nomor pesanan dimulai lagi dari #0001.`, color: brandColor() });
                         return edit({ content: `♻️ **${removed}** pesanan dihapus. Pesanan berikutnya akan bernomor **#0001**.\nLeaderboard, statistik, dan riwayat pembeli ikut kosong. Pesan lama di channel (vouch, riwayat, log) dan role loyalitas yang sudah diberikan **tidak** dihapus otomatis.` });
+                    }
+
+                    case "status-channel": {
+                        const sub = opts?.[0] as any;
+                        const subOpts = sub?.options as APIApplicationCommandInteractionDataOption[] | undefined;
+                        const labels: Record<string, string> = { toko: "Toko (OPEN/CLOSE)", username: "Robux Via Username", login: "Robux Via Login", group: "Group Payout", gift: "Gift In Game", boost: "Joki / Boosting" };
+                        if (sub?.name === "atur") {
+                            const key = getOption(subOpts, "layanan")?.value as shopDb.StatusKey;
+                            const channelId = getOption(subOpts, "channel")?.value as string;
+                            await shopDb.setStatusChannel(guildId, key, channelId);
+                            syncStatusChannels(api, guildId);
+                            return say(`✅ <#${channelId}> sekarang menampilkan status **${labels[key]}** dan akan berganti 🟢/🔴 otomatis.\n-# Discord membatasi ganti nama channel ±2x per 10 menit, jadi perubahan bisa sedikit tertunda.`);
+                        }
+                        if (sub?.name === "hapus") {
+                            const key = getOption(subOpts, "layanan")?.value as shopDb.StatusKey;
+                            const ok = await shopDb.deleteStatusChannel(guildId, key);
+                            return say(ok ? `🗑️ Channel status **${labels[key]}** dilepas (nama channel tidak diubah lagi).` : "Status itu belum terhubung ke channel mana pun.");
+                        }
+                        const list = await shopDb.getStatusChannels(guildId);
+                        return reply({ embeds: [{ title: "📡 Channel Status", color: brandColor(), description: list.length ? list.map((x) => `**${labels[x.status_key]}** → <#${x.channel_id}>`).join("\n") : "_Belum ada. Pakai `/status-channel atur`._" }] });
                     }
 
                     case "toko-pembayaran":

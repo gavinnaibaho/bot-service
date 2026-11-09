@@ -130,6 +130,49 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "status-channel",
+        description: "Hubungkan channel (mis. voice di SERVER STATS) supaya namanya otomatis 🟢/🔴 sesuai layanan",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            {
+                type: ApplicationCommandOptionType.Subcommand, name: "atur", description: "Hubungkan channel ke status toko / layanan",
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.String, name: "layanan", description: "Status yang ditampilkan channel ini", required: true,
+                        choices: [
+                            { name: "Toko (OPEN / CLOSE)", value: "toko" },
+                            { name: "Robux Via Username", value: "username" },
+                            { name: "Robux Via Login", value: "login" },
+                            { name: "Group Payout", value: "group" },
+                            { name: "Gift In Game", value: "gift" },
+                            { name: "Joki / Boosting", value: "boost" },
+                        ],
+                    },
+                    { type: ApplicationCommandOptionType.Channel, name: "channel", description: "Channel yang namanya diganti otomatis", required: true, channel_types: [ChannelType.GuildVoice, ChannelType.GuildText, ChannelType.GuildStageVoice, ChannelType.GuildAnnouncement] },
+                ],
+            },
+            {
+                type: ApplicationCommandOptionType.Subcommand, name: "hapus", description: "Lepas channel status",
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.String, name: "layanan", description: "Status yang dilepas", required: true,
+                        choices: [
+                            { name: "Toko (OPEN / CLOSE)", value: "toko" },
+                            { name: "Robux Via Username", value: "username" },
+                            { name: "Robux Via Login", value: "login" },
+                            { name: "Group Payout", value: "group" },
+                            { name: "Gift In Game", value: "gift" },
+                            { name: "Joki / Boosting", value: "boost" },
+                        ],
+                    },
+                ],
+            },
+            { type: ApplicationCommandOptionType.Subcommand, name: "daftar", description: "Lihat channel status yang terhubung" },
+        ],
+    },
+    {
         name: "toko-pembayaran",
         description: "Atur info pembayaran (rekening, e-wallet, link QRIS) yang ditampilkan di tiket",
         type: ApplicationCommandType.ChatInput,
