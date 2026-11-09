@@ -46,6 +46,9 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 // ---------- Panel toko ----------
 
+/** Garis pemisah di bawah judul panel (pendek supaya tidak terpotong di HP). */
+const DIVIDER = "━".repeat(24);
+
 /** Label tombol tiap layanan di panel. */
 const PANEL_BUTTON: Record<DeliveryMethod, string> = {
     username: "Robux · Via Username",
@@ -68,7 +71,8 @@ export function panelMessage(config: ShopConfig) {
     const embed: APIEmbed = {
         description:
             `# ${store}\n` +
-            "**Layanan Top Up Robux & Jasa Game**\n\n" +
+            "**Layanan Top Up Robux & Jasa Game**\n" +
+            `${DIVIDER}\n` +
             `${status}\n\n` +
             "Silakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.",
         fields: [
