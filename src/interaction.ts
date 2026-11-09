@@ -508,9 +508,10 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     ];
                     if (config.admin_role_id) overwrites.push({ id: config.admin_role_id, type: OverwriteType.Role, allow: (view | PermissionFlagsBits.ManageMessages).toString() });
                     let channel: { id: string } | null = null;
+                    const askName = `tanya-${sanitizeChannelName(member?.user.username ?? "member")}`;
                     try {
                         channel = await api.guilds.createChannel(guildId, {
-                            name: `tanya-${sanitizeChannelName(member?.user.username ?? "member")}`,
+                            name: askName,
                             type: ChannelType.GuildText,
                             parent_id: config.ticket_category_id ?? undefined,
                             permission_overwrites: overwrites,
@@ -521,7 +522,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: "❌ Gagal membuat tiket. Admin perlu memberi bot izin **Manage Channels**." });
                     }
                     await api.channels.createMessage(channel.id, askTicketMessage(userId, config.admin_role_id, config.store_name));
-                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}>`, color: BRAND_COLOR });
+                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}> (\`#${askName}\`)`, color: BRAND_COLOR });
                     return edit({ content: `✅ Tiket pertanyaan dibuat: <#${channel.id}>` });
                 }
                 if (action === "closeask") {
@@ -529,7 +530,8 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!admin && userId !== ownerId) return say("❌ Kamu tidak bisa menutup tiket ini.");
                     await say("🔒 Tiket ditutup dalam 5 detik…");
                     const channelId = interaction.message.channel_id;
-                    if (config) await logToChannel(api, config, { title: "🔒 Tiket pertanyaan ditutup", description: `Oleh <@${userId}>`, color: 0x95a5a6 });
+                    const closedCh: any = await api.channels.get(channelId).catch(() => null);
+                    if (config) await logToChannel(api, config, { title: "🔒 Tiket pertanyaan ditutup", description: `\`#${closedCh?.name ?? "tiket"}\` · oleh <@${userId}>`, color: 0x95a5a6 });
                     setTimeout(() => {
                         api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket tanya: ${err}`));
                     }, 5000);
@@ -767,7 +769,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         components: orderButtons(withChannel),
                         allowed_mentions: { users: [userId], roles: config.admin_role_id ? [config.admin_role_id] : [] },
                     });
-                    await logToChannel(api, config, { ...orderEmbed(withChannel, `🆕 Pesanan baru ${orderCode(order.id)}`), description: `Tiket: <#${channel.id}>` });
+                    await logToChannel(api, config, { ...orderEmbed(withChannel, `🆕 Pesanan baru ${orderCode(order.id)}`), description: `Tiket: <#${channel.id}> (\`#${prefix}-${String(order.id).padStart(4, "0")}-${username_}\`)` });
                     return edit({ content: `✅ Pesanan ${orderCode(order.id)} dibuat! Lanjutkan di <#${channel.id}>.` });
                 }
 
