@@ -27,7 +27,7 @@ const gateway = new WebSocketManager({
         status: PresenceUpdateStatus.Online,
         since: null,
         afk: false,
-        activities: [{ name: "🛒 Toko Robux", type: ActivityType.Custom, state: "🛒 Beli Robux di sini" }],
+        activities: [{ name: "𝘙𝘖𝘉𝘜𝘟 & 𝘎𝘐𝘎", type: ActivityType.Custom, state: "𝘙𝘖𝘉𝘜𝘟 & 𝘎𝘐𝘎" }],
     },
 });
 const client = new Client({ rest, gateway });
