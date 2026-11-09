@@ -25,6 +25,7 @@ import {
     orderModal,
     buyMethodPicker,
     askTicketMessage,
+    BRAND_COLOR,
     gigPriceModal,
     priceListMessage,
     announceModal,
@@ -254,7 +255,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         await reply({
                             embeds: [{
                                 title: "⚙️ Pengaturan Toko",
-                                color: 0x00b06f,
+                                color: BRAND_COLOR,
                                 description: [
                                     `**Role admin:** ${c.admin_role_id ? `<@&${c.admin_role_id}>` : "_belum (hanya yang punya Manage Server)_"}`,
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
@@ -425,7 +426,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return reply({
                             embeds: [{
                                 title: "🧾 Riwayat Pesanan",
-                                color: 0x00b06f,
+                                color: BRAND_COLOR,
                                 description: orders.length
                                     ? orders.map((o) => `\`${orderCode(o.id)}\` <t:${o.created_at}:d> · ${robux(o.robux)} · ${rupiah(o.price)} · ${STATUS_LABEL[o.status]}`).join("\n")
                                     : "_Kamu belum pernah memesan._",
@@ -489,7 +490,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: "❌ Gagal membuat tiket. Admin perlu memberi bot izin **Manage Channels**." });
                     }
                     await api.channels.createMessage(channel.id, askTicketMessage(userId, config.admin_role_id, config.store_name));
-                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}>`, color: 0x5865f2 });
+                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}>`, color: BRAND_COLOR });
                     return edit({ content: `✅ Tiket pertanyaan dibuat: <#${channel.id}>` });
                 }
                 if (action === "closeask") {
@@ -636,7 +637,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     const c = config ?? shopDb.defaultConfig(guildId);
                     c.payment_info = trim((values.payment_info ?? "").trim(), 1500) || null;
                     await shopDb.saveShopConfig(c);
-                    return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: 0x00b06f }] });
+                    return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: BRAND_COLOR }] });
                 }
 
                 if (kind === "order") {

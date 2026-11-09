@@ -29,7 +29,8 @@ import {
     rupiah,
 } from "./pricing";
 
-const BRAND_COLOR = 0x00b06f;
+/** Warna utama toko (merah muda, senada dengan foto profil bot). */
+export const BRAND_COLOR = 0xff8fc7;
 
 type Row = APIActionRowComponent<APIButtonComponent>;
 
@@ -74,7 +75,7 @@ export function panelMessage(config: ShopConfig) {
             "📋 **Jenis Order Tersedia:**\n" +
             list.join("\n") +
             "\n\n⚠️ Tombol yang tertulis **(Stok Habis)** berarti produk sedang tidak tersedia.",
-        color: config.is_open ? 0x5865f2 : 0xe74c3c,
+        color: config.is_open ? BRAND_COLOR : 0xe74c3c,
         footer: { text: `${store} • Trusted Robux Seller • Klik tombol untuk buat tiket` },
     };
 
@@ -103,7 +104,7 @@ export function askTicketMessage(userId: string, adminRoleId: string | null, sto
         embeds: [{
             title: "❓ Tiket Pertanyaan",
             description: `Silakan tulis pertanyaanmu seputar jual beli & Robux di sini. Admin ${store} akan segera membalas.\n\nKalau sudah selesai, klik **🔒 Tutup Tiket**.`,
-            color: 0x5865f2,
+            color: BRAND_COLOR,
         }] as APIEmbed[],
         components: [row(button(`shop:closeask:${userId}`, "Tutup Tiket", ButtonStyle.Secondary, "🔒"))],
         allowed_mentions: { users: [userId], roles: adminRoleId ? [adminRoleId] : [] },
