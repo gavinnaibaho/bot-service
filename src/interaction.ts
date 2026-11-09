@@ -99,8 +99,9 @@ async function refreshPanel(api: Api, guildId: string) {
     if (!config?.panel_channel_id || !config.panel_message_id) return;
     try {
         await api.channels.editMessage(config.panel_channel_id, config.panel_message_id, panelMessage(config));
-    } catch {
-        // panel sudah dihapus: lupakan
+    } catch (err) {
+        // panel sudah dihapus / format lama tidak bisa diubah: lupakan, kirim ulang dengan /toko-panel
+        console.log(`[shop] panel lama tidak bisa diperbarui: ${err}`);
         await shopDb.saveShopConfig({ ...config, panel_channel_id: null, panel_message_id: null });
     }
 }
@@ -369,7 +370,10 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
                     case "toko-panel": {
                         const c = config ?? shopDb.defaultConfig(guildId);
-                        const msg = await api.channels.createMessage(interaction.channel!.id, panelMessage(c)).catch(() => null);
+                        const msg = await api.channels.createMessage(interaction.channel!.id, panelMessage(c)).catch((err: unknown) => {
+                            console.log(`[shop] gagal kirim panel: ${err}`);
+                            return null;
+                        });
                         if (!msg) return say("❌ Gagal mengirim panel. Pastikan bot bisa melihat & mengirim pesan di channel ini.");
                         await shopDb.saveShopConfig({ ...c, panel_channel_id: msg.channel_id, panel_message_id: msg.id });
                         return say("✅ Panel toko terkirim. Panel ini akan otomatis diperbarui saat harga atau status toko berubah.");

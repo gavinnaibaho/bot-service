@@ -46,9 +46,6 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 // ---------- Panel toko ----------
 
-/** Garis pemisah di bawah judul panel (pendek supaya tidak terpotong di HP). */
-const DIVIDER = "━".repeat(24);
-
 /** Label tombol tiap layanan di panel. */
 const PANEL_BUTTON: Record<DeliveryMethod, string> = {
     username: "Robux · Via Username",
@@ -60,47 +57,22 @@ const PANEL_BUTTON: Record<DeliveryMethod, string> = {
 /** Urutan tampil di panel. */
 const PANEL_ORDER: DeliveryMethod[] = ["username", "login", "group", "gift", "boost"];
 
+/** Flag pesan Components V2 (kotak dengan pemisah & tombol di dalamnya). */
+const IS_COMPONENTS_V2 = 1 << 15;
+const text = (content: string) => ({ type: 10, content });
+const divider = (big = false) => ({ type: 14, divider: true, spacing: big ? 2 : 1 });
+
+/**
+ * Panel Order Center (Components V2): satu kotak berwarna dengan judul besar,
+ * garis pemisah, daftar layanan, alur pemesanan, dan tombol di dalam kotak.
+ */
 export function panelMessage(config: ShopConfig) {
     const store = config.store_name;
-    const mark = (m: DeliveryMethod, text: string) => isMethodEnabled(config, m) ? text : `~~${text}~~`;
+    const mark = (m: DeliveryMethod, t: string) => isMethodEnabled(config, m) ? t : `~~${t}~~`;
 
     const status = config.is_open
         ? "🟢 **Status:** Buka — pesanan diproses hari ini"
         : `🔴 **Status:** Tutup${config.close_reason ? ` — ${config.close_reason}` : ""}`;
-
-    const embed: APIEmbed = {
-        description:
-            `# ${store}\n` +
-            "**Layanan Top Up Robux & Jasa Game**\n" +
-            `${DIVIDER}\n` +
-            `${status}\n\n` +
-            "Silakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.",
-        fields: [
-            {
-                name: "Robux",
-                value: [mark("username", "Via Username"), mark("login", "Via Login"), mark("group", "Group Payout")].map((t) => `• ${t}`).join("\n"),
-                inline: true,
-            },
-            {
-                name: "Layanan Lain",
-                value: [mark("gift", "Gift In Game (GIG)"), mark("boost", "Joki / Boosting"), "Tanya Admin"].map((t) => `• ${t}`).join("\n"),
-                inline: true,
-            },
-            {
-                name: "Alur Pemesanan",
-                value: "`1` Pilih layanan dan isi formulir\n`2` Lakukan pembayaran sesuai instruksi di tiket\n`3` Kirim bukti transfer di tiket\n`4` Pesanan diproses oleh admin",
-                inline: false,
-            },
-            {
-                name: "Catatan",
-                value: "Layanan yang dicoret sedang **tidak tersedia**.\nAdmin tidak pernah meminta pembayaran atau data akun melalui DM.",
-                inline: false,
-            },
-        ],
-        color: config.is_open ? BRAND_COLOR : 0xe74c3c,
-        footer: { text: `${store} • Pesanan diproses melalui tiket` },
-        timestamp: new Date().toISOString(),
-    };
 
     const buttons = PANEL_ORDER.map((m) => {
         const available = isMethodEnabled(config, m);
@@ -114,10 +86,39 @@ export function panelMessage(config: ShopConfig) {
         return b;
     });
     buttons.push(button("shop:ask", "Tanya", ButtonStyle.Secondary, "❓"));
-
     const rows: Row[] = [];
     for (let k = 0; k < buttons.length; k += 3) rows.push(row(...buttons.slice(k, k + 3)));
-    return { embeds: [embed], components: rows, allowed_mentions: { parse: [] } };
+
+    const container = {
+        type: 17,
+        accent_color: config.is_open ? BRAND_COLOR : 0xe74c3c,
+        components: [
+            text(`# 🛒 ${store}\n**Layanan Top Up Robux & Jasa Game**`),
+            divider(),
+            text(`${status}\n\nSilakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.`),
+            text(
+                "**📋 Layanan Tersedia**\n" +
+                [
+                    `👤 ${mark("username", "**Robux Via Username** — Transfer Robux langsung")}`,
+                    `🔐 ${mark("login", "**Robux Via Login** — Top up melalui login akun")}`,
+                    `👥 ${mark("group", "**Robux Group Payout** — Dikirim lewat payout grup")}`,
+                    `🎁 ${mark("gift", "**Gift In Game** — Beli item di dalam game")}`,
+                    `🏆 ${mark("boost", "**Joki / Boosting** — Naikkan rank / level game")}`,
+                    "❓ **Tanya** — Pertanyaan seputar jual beli & Robux",
+                ].map((l) => `> ${l}`).join("\n"),
+            ),
+            text(
+                "**🧾 Alur Pemesanan**\n" +
+                "`1` Pilih layanan dan isi formulir\n`2` Lakukan pembayaran sesuai instruksi di tiket\n`3` Kirim bukti transfer di tiket\n`4` Pesanan diproses oleh admin",
+            ),
+            text("⚠️ Layanan yang dicoret sedang **tidak tersedia**. Admin tidak pernah meminta pembayaran atau data akun melalui DM."),
+            divider(),
+            ...rows,
+            text(`-# ${store} • Pesanan diproses melalui tiket`),
+        ],
+    };
+
+    return { components: [container], flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as [] } } as any;
 }
 
 /** Pesan pembuka tiket pertanyaan. */
