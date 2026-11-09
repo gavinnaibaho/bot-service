@@ -52,7 +52,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 | `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
-| `/announce [channel] [ping] [role] [warna]` | Kirim pengumuman penting lewat form. Channel default = channel pengumuman toko |
+| `/announce [channel] [ping] [role] [warna] [gambar]` | Kirim pengumuman penting lewat form. Opsi `gambar` untuk upload banner langsung. Channel default = channel pengumuman toko |
 | `/kirim-pesan [channel]` | Kirim pesan teks biasa atas nama bot (tanpa embed), maks. 2000 karakter |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |

@@ -104,6 +104,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
                     { name: "Ungu", value: "9b59b6" },
                 ],
             },
+            { type: ApplicationCommandOptionType.Attachment, name: "gambar", description: "Upload gambar/banner yang tampil besar di pengumuman" },
         ],
     },
     {

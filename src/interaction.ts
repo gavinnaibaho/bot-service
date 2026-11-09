@@ -51,6 +51,10 @@ type Api = API;
 
 // ---------- Helper ----------
 
+/** Gambar yang di-upload lewat opsi /announce gambar, menunggu form diisi (per admin, 15 menit). */
+const pendingAnnounceImages = new Map<string, { url: string; filename: string; at: number }>();
+const MAX_ANNOUNCE_IMAGE = 10 * 1024 * 1024;
+
 function isShopInteraction(i: APIInteraction): boolean {
     if (i.type === InteractionType.ApplicationCommand) return SHOP_COMMAND_NAMES.has(i.data.name);
     if (i.type === InteractionType.MessageComponent) return i.data.custom_id.startsWith("shop:");
@@ -359,6 +363,15 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (ping === "role" && !roleId) return say("❌ Ping **Role pilihan** butuh opsi **role** juga.");
                         if (ping === "store" && !config?.ping_role_id) return say("❌ Role ping toko belum diatur. Pakai `/toko-setup role_ping` atau pilih ping lain.");
                         const color = (getOption(opts, "warna")?.value as string | undefined) ?? "2ecc71";
+                        const attId = getOption(opts, "gambar")?.value as string | undefined;
+                        pendingAnnounceImages.delete(userId);
+                        if (attId) {
+                            const att = data.resolved?.attachments?.[attId];
+                            if (!att) return say("❌ Gambar tidak terbaca, coba upload ulang.");
+                            if (!(att.content_type ?? "").startsWith("image/")) return say("❌ File harus berupa gambar (PNG/JPG/GIF/WEBP).");
+                            if (att.size > MAX_ANNOUNCE_IMAGE) return say("❌ Gambar terlalu besar (maks. 10 MB).");
+                            pendingAnnounceImages.set(userId, { url: att.url, filename: att.filename, at: Date.now() });
+                        }
                         await api.interactions.createModal(interaction.id, interaction.token, announceModal(channelId, ping, roleId, color));
                         replied = true;
                         return;
@@ -648,14 +661,27 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     else if (ping === "store" && config?.ping_role_id) { const rp = rolePing(guildId, config.ping_role_id); content = rp.text; allowed = rp.allowed; }
                     else if (ping === "role" && roleId) { const rp = rolePing(guildId, roleId); content = rp.text; allowed = rp.allowed; }
 
+                    // Gambar yang di-upload lewat opsi `gambar` diunggah ulang supaya tidak kedaluwarsa.
+                    let file: { name: string; data: Buffer } | undefined;
+                    const pending = pendingAnnounceImages.get(userId);
+                    pendingAnnounceImages.delete(userId);
+                    if (pending && Date.now() - pending.at < 15 * 60 * 1000) {
+                        await defer();
+                        const res = await fetch(pending.url).catch(() => null);
+                        if (!res?.ok) return edit({ content: "❌ Gagal mengambil gambar, coba ulangi `/announce`." });
+                        const ext = (pending.filename.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                        file = { name: `banner.${ext}`, data: Buffer.from(await res.arrayBuffer()) };
+                    }
+                    const done = (m: string) => (deferred ? edit({ content: m }) : say(m));
+
                     const store = config?.store_name ?? shopDb.DEFAULT_STORE_NAME;
-                    const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "2ecc71", 16), image, content, allowed)).catch((err: unknown) => {
+                    const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "2ecc71", 16), image, content, allowed, file) as any).catch((err: unknown) => {
                         console.log(`[shop] gagal kirim pengumuman: ${err}`);
                         return null;
                     });
-                    if (!msg) return say(`❌ Gagal mengirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan di sana${content ? " (dan punya izin **Mention Everyone** untuk ping)" : ""}.`);
+                    if (!msg) return done(`❌ Gagal mengirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan${file ? " serta melampirkan file (Attach Files)" : ""} di sana${content ? " (dan punya izin **Mention Everyone** untuk ping)" : ""}.`);
                     if (config) await logToChannel(api, config, { title: "📢 Pengumuman dikirim", description: `<@${userId}> di <#${channelId}>: **${title}**`, color: 0x95a5a6 });
-                    return say(`✅ Pengumuman terkirim ke <#${channelId}>.`);
+                    return done(`✅ Pengumuman terkirim ke <#${channelId}>.`);
                 }
 
                 if (kind === "payment") {

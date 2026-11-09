@@ -459,7 +459,7 @@ export function announceModal(channelId: string, ping: string, roleId: string, c
             {
                 type: ComponentType.Label,
                 label: "Link gambar (opsional)",
-                description: "URL gambar/banner yang tampil besar di bawah pengumuman",
+                description: "Atau upload langsung lewat opsi `gambar` di /announce",
                 component: { type: ComponentType.TextInput, custom_id: "image", style: TextInputStyle.Short, placeholder: "https://...png", max_length: 500, required: false },
             },
         ],
@@ -482,8 +482,10 @@ export function plainMessageModal(channelId: string): APIModalInteractionRespons
     };
 }
 
-export function announceMessage(store: string, title: string, body: string, color: number, image: string | null, pingContent: string | undefined, allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] }) {
+export function announceMessage(store: string, title: string, body: string, color: number, image: string | null, pingContent: string | undefined, allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] }, file?: { name: string; data: Buffer }) {
+    if (file) image = `attachment://${file.name}`;
     return {
+        ...(file ? { files: [file] } : {}),
         content: pingContent,
         embeds: [{
             title,
