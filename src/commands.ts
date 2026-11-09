@@ -95,8 +95,9 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             },
             { type: ApplicationCommandOptionType.Role, name: "role", description: "Role yang di-ping jika ping = Role pilihan" },
             {
-                type: ApplicationCommandOptionType.String, name: "warna", description: "Warna garis embed (default: hijau)",
+                type: ApplicationCommandOptionType.String, name: "warna", description: "Warna garis embed (default: pink muda)",
                 choices: [
+                    { name: "Pink muda (warna toko)", value: "ff8fc7" },
                     { name: "Hijau", value: "2ecc71" },
                     { name: "Merah (penting/peringatan)", value: "e74c3c" },
                     { name: "Kuning", value: "f1c40f" },

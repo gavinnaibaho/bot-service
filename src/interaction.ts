@@ -362,7 +362,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const roleId = (getOption(opts, "role")?.value as string | undefined) ?? "";
                         if (ping === "role" && !roleId) return say("❌ Ping **Role pilihan** butuh opsi **role** juga.");
                         if (ping === "store" && !config?.ping_role_id) return say("❌ Role ping toko belum diatur. Pakai `/toko-setup role_ping` atau pilih ping lain.");
-                        const color = (getOption(opts, "warna")?.value as string | undefined) ?? "2ecc71";
+                        const color = (getOption(opts, "warna")?.value as string | undefined) ?? "ff8fc7";
                         const attId = getOption(opts, "gambar")?.value as string | undefined;
                         pendingAnnounceImages.delete(userId);
                         if (attId) {
@@ -675,7 +675,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     const done = (m: string) => (deferred ? edit({ content: m }) : say(m));
 
                     const store = config?.store_name ?? shopDb.DEFAULT_STORE_NAME;
-                    const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "2ecc71", 16), image, content, allowed, file) as any).catch((err: unknown) => {
+                    const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "ff8fc7", 16), image, content, allowed, file) as any).catch((err: unknown) => {
                         console.log(`[shop] gagal kirim pengumuman: ${err}`);
                         return null;
                     });
