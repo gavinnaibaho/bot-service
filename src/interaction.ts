@@ -26,6 +26,8 @@ import {
     buyMethodPicker,
     gigPriceModal,
     priceListMessage,
+    announceModal,
+    announceMessage,
     panelMessage,
     paymentInfoModal,
     priceEmbed,
@@ -343,6 +345,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
                     }
 
+                    case "announce": {
+                        const channelId = (getOption(opts, "channel")?.value as string | undefined) ?? config?.announce_channel_id;
+                        if (!channelId) return say("❌ Pilih **channel**, atau atur channel pengumuman dulu lewat `/toko-setup channel_pengumuman`.");
+                        const ping = (getOption(opts, "ping")?.value as string | undefined) ?? "none";
+                        const roleId = (getOption(opts, "role")?.value as string | undefined) ?? "";
+                        if (ping === "role" && !roleId) return say("❌ Ping **Role pilihan** butuh opsi **role** juga.");
+                        if (ping === "store" && !config?.ping_role_id) return say("❌ Role ping toko belum diatur. Pakai `/toko-setup role_ping` atau pilih ping lain.");
+                        const color = (getOption(opts, "warna")?.value as string | undefined) ?? "2ecc71";
+                        await api.interactions.createModal(interaction.id, interaction.token, announceModal(channelId, ping, roleId, color));
+                        replied = true;
+                        return;
+                    }
+
                     case "toko-pembayaran":
                         await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null));
                         replied = true;
@@ -539,6 +554,40 @@ export async function handleInteraction({ data: interaction, api, applicationId 
             if (interaction.type === InteractionType.ModalSubmit) {
                 const [, kind, idStr] = interaction.data.custom_id.split(":");
                 const values = modalValues(interaction.data.components as any[]);
+
+                if (kind === "announce") {
+                    if (!admin) return say("❌ Hanya admin.");
+                    const [, , channelId, ping, roleRaw, colorHex] = interaction.data.custom_id.split(":");
+                    const roleId = roleRaw && roleRaw !== "-" ? roleRaw : null;
+                    const title = trim((values.title ?? "").trim(), 256);
+                    const body = trim((values.body ?? "").trim(), 4000);
+                    const imageRaw = (values.image ?? "").trim();
+                    let image: string | null = null;
+                    if (imageRaw) {
+                        try {
+                            const u = new URL(imageRaw);
+                            if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error();
+                            image = u.toString();
+                        } catch {
+                            return say("❌ Link gambar tidak valid. Pakai link yang diawali `https://`, atau kosongkan.");
+                        }
+                    }
+                    let content: string | undefined;
+                    let allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] } = { parse: [] };
+                    if (ping === "everyone") { content = "@everyone"; allowed = { parse: ["everyone"] }; }
+                    else if (ping === "here") { content = "@here"; allowed = { parse: ["everyone"] }; }
+                    else if (ping === "store" && config?.ping_role_id) { content = `<@&${config.ping_role_id}>`; allowed = { roles: [config.ping_role_id] }; }
+                    else if (ping === "role" && roleId) { content = `<@&${roleId}>`; allowed = { roles: [roleId] }; }
+
+                    const store = config?.store_name ?? shopDb.DEFAULT_STORE_NAME;
+                    const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "2ecc71", 16), image, content, allowed)).catch((err: unknown) => {
+                        console.log(`[shop] gagal kirim pengumuman: ${err}`);
+                        return null;
+                    });
+                    if (!msg) return say(`❌ Gagal mengirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan di sana${content ? " (dan punya izin **Mention Everyone** untuk ping)" : ""}.`);
+                    if (config) await logToChannel(api, config, { title: "📢 Pengumuman dikirim", description: `<@${userId}> di <#${channelId}>: **${title}**`, color: 0x95a5a6 });
+                    return say(`✅ Pengumuman terkirim ke <#${channelId}>.`);
+                }
 
                 if (kind === "payment") {
                     if (!admin) return say("❌ Hanya admin.");

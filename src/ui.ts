@@ -336,6 +336,48 @@ export function orderSummary(order: Order): string {
     return `🎮 ${robux(order.robux)} via ${METHOD_LABEL[order.method]}`;
 }
 
+/** Form pengumuman. Pengaturan channel/ping/warna dibawa lewat custom_id. */
+export function announceModal(channelId: string, ping: string, roleId: string, color: string): APIModalInteractionResponseCallbackData {
+    return {
+        title: "Kirim Pengumuman",
+        custom_id: `shop_modal:announce:${channelId}:${ping}:${roleId || "-"}:${color}`,
+        components: [
+            {
+                type: ComponentType.Label,
+                label: "Judul",
+                component: { type: ComponentType.TextInput, custom_id: "title", style: TextInputStyle.Short, placeholder: "contoh: 📢 Update Harga Robux", max_length: 200, required: true },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Isi pengumuman",
+                description: "Mendukung format Discord: **tebal**, *miring*, > kutipan, emoji, link",
+                component: { type: ComponentType.TextInput, custom_id: "body", style: TextInputStyle.Paragraph, placeholder: "Tulis pengumuman di sini…", max_length: 4000, required: true },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Link gambar (opsional)",
+                description: "URL gambar/banner yang tampil besar di bawah pengumuman",
+                component: { type: ComponentType.TextInput, custom_id: "image", style: TextInputStyle.Short, placeholder: "https://...png", max_length: 500, required: false },
+            },
+        ],
+    };
+}
+
+export function announceMessage(store: string, title: string, body: string, color: number, image: string | null, pingContent: string | undefined, allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] }) {
+    return {
+        content: pingContent,
+        embeds: [{
+            title,
+            description: body,
+            color,
+            ...(image ? { image: { url: image } } : {}),
+            footer: { text: `${store} • Pengumuman` },
+            timestamp: new Date().toISOString(),
+        }] as APIEmbed[],
+        allowed_mentions: allowed,
+    };
+}
+
 export function paymentInfoModal(current: string | null): APIModalInteractionResponseCallbackData {
     return {
         title: "Info Pembayaran",

@@ -21,6 +21,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | ⭐ Riwayat transaksi | Channel publik berisi **Transaksi selesai** (pembeli, jenis order, nominal, total transaksi pembeli, admin yang memproses) dan **Tiket Ditutup** |
 | 🏆 Leaderboard | Top 10 pembeli berdasarkan total belanja + jumlah customer & total spending. Pesan di channel leaderboard otomatis diperbarui setiap transaksi selesai; bisa juga dilihat dengan `/leaderboard` |
 | 📊 Panel admin | `/toko-statistik`: pendapatan hari ini/7/30 hari, pesanan tertunda, top pembeli |
+| 📢 Pengumuman | `/announce`: form judul, isi, dan gambar; pilih channel, warna, dan ping (@everyone, @here, role ping toko, atau role lain) |
 | 📝 Log | Semua kejadian (order baru, konfirmasi, selesai, batal, buka/tutup) dicatat ke channel log |
 
 ## Alur pesanan
@@ -49,6 +50,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 | `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
+| `/announce [channel] [ping] [role] [warna]` | Kirim pengumuman penting lewat form. Channel default = channel pengumuman toko |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |
 | `/toko-statistik` | Panel admin |
@@ -62,9 +64,9 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 1. **Buat aplikasi bot baru** di [Discord Developer Portal](https://discord.com/developers/applications) (terpisah dari bot honeypot). Salin token-nya. Tidak perlu mengaktifkan privileged intent apa pun.
 2. **Invite bot** (ganti `CLIENT_ID` dengan Application ID):
    ```
-   https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=268561424
+   https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=268692496
    ```
-   Izin: Manage Channels, Manage Roles, View Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History.
+   Izin: Manage Channels, Manage Roles, View Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Mention Everyone (untuk ping @everyone/@here di `/announce`).
 3. **Jalankan** (butuh [Bun](https://bun.sh) v1.2+):
    ```bash
    cp .env.example .env   # isi DISCORD_TOKEN, dan GUILD_ID supaya command langsung muncul

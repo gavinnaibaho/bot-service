@@ -75,6 +75,37 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "announce",
+        description: "Kirim pengumuman penting ke channel (judul, isi, gambar, ping)",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.Channel, name: "channel", description: "Channel tujuan (default: channel pengumuman toko)", channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement] },
+            {
+                type: ApplicationCommandOptionType.String, name: "ping", description: "Siapa yang di-ping (default: tidak ada)",
+                choices: [
+                    { name: "Tidak ada", value: "none" },
+                    { name: "@everyone", value: "everyone" },
+                    { name: "@here", value: "here" },
+                    { name: "Role ping toko (dari /toko-setup)", value: "store" },
+                    { name: "Role pilihan (isi opsi role)", value: "role" },
+                ],
+            },
+            { type: ApplicationCommandOptionType.Role, name: "role", description: "Role yang di-ping jika ping = Role pilihan" },
+            {
+                type: ApplicationCommandOptionType.String, name: "warna", description: "Warna garis embed (default: hijau)",
+                choices: [
+                    { name: "Hijau", value: "2ecc71" },
+                    { name: "Merah (penting/peringatan)", value: "e74c3c" },
+                    { name: "Kuning", value: "f1c40f" },
+                    { name: "Biru", value: "3498db" },
+                    { name: "Ungu", value: "9b59b6" },
+                ],
+            },
+        ],
+    },
+    {
         name: "toko-pembayaran",
         description: "Atur info pembayaran (rekening, e-wallet, link QRIS) yang ditampilkan di tiket",
         type: ApplicationCommandType.ChatInput,
