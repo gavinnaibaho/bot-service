@@ -16,6 +16,7 @@ import {
     STATUS_COLOR,
     STATUS_LABEL,
     PRICED_METHODS,
+    isManual,
     PRICE_TIERS,
     enabledMethods,
     isMethodEnabled,
@@ -46,8 +47,8 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 export function panelMessage(config: ShopConfig) {
     const methods = enabledMethods(config);
-    const lines: string[] = methods.map((m) => m === "gift"
-        ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** harga menyesuaikan item`
+    const lines: string[] = methods.map((m) => isManual(m)
+        ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** ${m === "gift" ? "harga menyesuaikan item" : "harga sesuai game & target rank"}`
         : `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** ${rupiah(methodPrice(config, m))} / 100 R$`);
     if (lines.length === 0) lines.push("_Harga belum diatur oleh admin._");
 
@@ -59,13 +60,13 @@ export function panelMessage(config: ShopConfig) {
         title: "🛒 Toko Robux",
         description:
             `${status}\n\n` +
-            "Beli Robux dengan aman lewat tiket pribadi.\n\n" +
+            "Beli Robux & order joki dengan aman lewat tiket pribadi.\n\n" +
             lines.join("\n") +
             `\n\n📏 **Order:** ${robux(config.min_order)} – ${robux(config.max_order)}`,
         color: config.is_open ? BRAND_COLOR : 0xe74c3c,
-        footer: { text: config.is_open ? "Klik 🛒 Beli Robux untuk membuat pesanan" : "Toko sedang tutup, pantau pengumuman untuk jam buka" },
+        footer: { text: config.is_open ? "Klik 🛒 Order Sekarang untuk membuat pesanan" : "Toko sedang tutup, pantau pengumuman untuk jam buka" },
     };
-    const buy = button("shop:buy", config.is_open ? "Beli Robux" : "Toko Tutup", config.is_open ? ButtonStyle.Success : ButtonStyle.Secondary, config.is_open ? "🛒" : "🔴");
+    const buy = button("shop:buy", config.is_open ? "Order Sekarang" : "Toko Tutup", config.is_open ? ButtonStyle.Success : ButtonStyle.Secondary, config.is_open ? "🛒" : "🔴");
     if (!config.is_open) buy.disabled = true;
     return {
         embeds: [embed],
@@ -209,12 +210,13 @@ export function statusChannelName(current: string, open: boolean): string {
 // ---------- Kalkulator ----------
 
 export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
-    const methods = enabledMethods(config).filter((m) => m !== "gift");
+    const methods = enabledMethods(config).filter((m) => !isManual(m));
     const fields = methods.map((m) => {
         const price = priceFor(amount, methodPrice(config, m));
         return { name: methodLabel(m), value: `**${rupiah(price)}**`, inline: true };
     });
     if (isMethodEnabled(config, "gift")) fields.push({ name: methodLabel("gift"), value: "Harga dihitung admin sesuai item", inline: false });
+    if (isMethodEnabled(config, "boost")) fields.push({ name: methodLabel("boost"), value: "Harga dihitung admin sesuai game & target rank", inline: false });
     const warnings: string[] = [];
     if (amount < config.min_order) warnings.push(`⚠️ Di bawah minimal order (${robux(config.min_order)}).`);
     if (amount > config.max_order) warnings.push(`⚠️ Di atas maksimal order (${robux(config.max_order)}).`);
@@ -231,14 +233,14 @@ export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
 /** Balasan tombol "Beli Robux": pilih metode dulu, lalu form sesuai metode. */
 export function buyMethodPicker(config: ShopConfig) {
     const methods = enabledMethods(config);
-    const lines = methods.map((m) => m === "gift"
+    const lines = methods.map((m) => isManual(m)
         ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}**: ${METHOD_HINT[m]}`
         : `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}**: ${rupiah(methodPrice(config, m))} / 100 R$ · ${METHOD_HINT[m]}`);
-    const buttons = methods.map((m) => button(`shop:buym:${m}`, METHOD_LABEL[m], m === "gift" ? ButtonStyle.Primary : ButtonStyle.Success, METHOD_EMOJI[m]));
+    const buttons = methods.map((m) => button(`shop:buym:${m}`, METHOD_LABEL[m], isManual(m) ? ButtonStyle.Primary : ButtonStyle.Success, METHOD_EMOJI[m]));
     const rows: Row[] = [];
     for (let i = 0; i < buttons.length; i += 5) rows.push(row(...buttons.slice(i, i + 5)));
     return {
-        embeds: [{ title: "🛒 Pilih Metode Pengiriman", description: lines.join("\n"), color: BRAND_COLOR }] as APIEmbed[],
+        embeds: [{ title: "🛒 Pilih Layanan", description: lines.join("\n"), color: BRAND_COLOR }] as APIEmbed[],
         components: rows,
     };
 }
@@ -249,6 +251,40 @@ export function orderModal(config: ShopConfig, method: DeliveryMethod): APIModal
         label: "Username Roblox",
         component: { type: ComponentType.TextInput as const, custom_id: "username", style: TextInputStyle.Short, placeholder: "username kamu (bukan display name)", min_length: 3, max_length: 20, required: true },
     };
+    if (method === "boost") {
+        return {
+            title: "Order Joki / Boosting",
+            custom_id: "shop_modal:order:boost",
+            components: [
+                {
+                    type: ComponentType.Label,
+                    label: "Nama Game",
+                    component: { type: ComponentType.TextInput, custom_id: "game", style: TextInputStyle.Short, placeholder: "contoh: Mobile Legends / Valorant / Blox Fruits", min_length: 2, max_length: 60, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Rank / Level Sekarang",
+                    component: { type: ComponentType.TextInput, custom_id: "current", style: TextInputStyle.Short, placeholder: "contoh: Epic III", min_length: 1, max_length: 60, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Target Rank / Level",
+                    component: { type: ComponentType.TextInput, custom_id: "target", style: TextInputStyle.Short, placeholder: "contoh: Mythic", min_length: 1, max_length: 60, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Nickname / ID Akun Game",
+                    description: "Jangan tulis password di sini. Data login diminta admin di tiket.",
+                    component: { type: ComponentType.TextInput, custom_id: "username", style: TextInputStyle.Short, placeholder: "contoh: Gavin#1234 / ID 12345678", min_length: 2, max_length: 60, required: true },
+                },
+                {
+                    type: ComponentType.Label,
+                    label: "Catatan (opsional)",
+                    component: { type: ComponentType.TextInput, custom_id: "note", style: TextInputStyle.Paragraph, placeholder: "server/region, hero/role, jadwal main, permintaan khusus…", max_length: 300, required: false },
+                },
+            ],
+        };
+    }
     if (method === "gift") {
         return {
             title: "Order Gift In Game (GIG)",
@@ -297,13 +333,13 @@ export function orderModal(config: ShopConfig, method: DeliveryMethod): APIModal
 /** Modal admin untuk mengisi total harga GIG saat konfirmasi pembayaran. */
 export function gigPriceModal(order: Order): APIModalInteractionResponseCallbackData {
     return {
-        title: `Konfirmasi GIG ${orderCode(order.id)}`,
+        title: `Konfirmasi ${order.method === "boost" ? "Joki" : "GIG"} ${orderCode(order.id)}`,
         custom_id: `shop_modal:gigprice:${order.id}`,
         components: [
             {
                 type: ComponentType.Label,
                 label: "Total harga yang dibayar (Rupiah)",
-                description: `${order.note ?? "GIG"} · ${robux(order.robux)}`.slice(0, 100),
+                description: (order.method === "boost" ? `${order.note ?? "Joki"}` : `${order.note ?? "GIG"} · ${robux(order.robux)}`).slice(0, 100),
                 component: {
                     type: ComponentType.TextInput, custom_id: "price", style: TextInputStyle.Short, placeholder: "contoh: 65000",
                     value: order.price > 0 ? String(order.price) : undefined, min_length: 1, max_length: 12, required: true,
@@ -333,6 +369,7 @@ export function priceListMessage(config: ShopConfig, method: DeliveryMethod) {
 /** Ringkasan order untuk vouch & riwayat. */
 export function orderSummary(order: Order): string {
     if (order.method === "gift") return `🎁 GIG Roblox${order.note ? ` · ${order.note}` : ""} (${robux(order.robux)})`;
+    if (order.method === "boost") return `🏆 Joki${order.note ? ` · ${order.note.split("\n")[0]}` : ""}`;
     return `🎮 ${robux(order.robux)} via ${METHOD_LABEL[order.method]}`;
 }
 
@@ -432,13 +469,15 @@ export function testimonialModal(orderId: number): APIModalInteractionResponseCa
 export function orderEmbed(order: Order, title?: string): APIEmbed {
     const fields = [
         { name: "Pembeli", value: `<@${order.user_id}>`, inline: true },
-        { name: "Username Roblox", value: `\`${order.roblox_username}\``, inline: true },
+        { name: order.method === "boost" ? "Akun Game" : "Username Roblox", value: `\`${order.roblox_username}\``, inline: true },
         { name: "Metode", value: methodLabel(order.method), inline: true },
-        { name: "Jumlah", value: robux(order.robux), inline: true },
+        order.method === "boost"
+            ? { name: "Layanan", value: "Joki rank / level", inline: true }
+            : { name: "Jumlah", value: robux(order.robux), inline: true },
         { name: "Total Bayar", value: order.price > 0 ? `**${rupiah(order.price)}**` : "_dihitung admin_", inline: true },
         { name: "Status", value: STATUS_LABEL[order.status], inline: true },
     ];
-    if (order.note) fields.push({ name: order.method === "gift" ? "Map / Item" : "Catatan", value: order.note, inline: false });
+    if (order.note) fields.push({ name: order.method === "gift" ? "Map / Item" : order.method === "boost" ? "Detail Joki" : "Catatan", value: order.note.slice(0, 1024), inline: false });
     if (order.handled_by) fields.push({ name: "Ditangani oleh", value: `<@${order.handled_by}>`, inline: true });
     return {
         title: title ?? `Pesanan ${orderCode(order.id)}`,
@@ -450,7 +489,10 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
 
 export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     const steps: string[] = [];
-    if (order.method === "gift") {
+    if (order.method === "boost") {
+        steps.push("**1. Tunggu admin menghitung harga & estimasi waktu** joki kamu dan menyebutkannya di tiket ini.");
+        steps.push("**2. Bayar sesuai total dari admin**, lalu kirim foto bukti transfer di chat tiket ini.");
+    } else if (order.method === "gift") {
         steps.push("**1. Tunggu admin menghitung harga** item kamu dan menyebutkan totalnya di tiket ini.");
         steps.push("**2. Bayar sesuai total dari admin**, lalu kirim foto bukti transfer di chat tiket ini.");
     } else {
@@ -458,6 +500,14 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
         steps.push("**2. Kirim foto bukti transfer** langsung di chat tiket ini.");
     }
     switch (order.method) {
+        case "boost":
+            steps.push(
+                "**3. Admin akan meminta data login akun game di tiket ini.**\n" +
+                "🔐 Kirim **hanya di tiket ini**, jangan pernah di channel lain atau ke DM siapa pun yang mengaku admin.\n" +
+                "🎮 **Jangan login/main di akun itu** selama proses joki supaya tidak bentrok.\n" +
+                "🔐 **Segera ganti password** setelah joki selesai.",
+            );
+            break;
         case "gift":
             steps.push("**3. Admin akan mengirim item** sebagai gift ke akun Roblox kamu di dalam map/game tersebut. Pastikan nama map, item, dan username sudah benar.");
             break;
@@ -476,7 +526,9 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
             );
             break;
     }
-    steps.push("**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengirim Robux.");
+    steps.push(order.method === "boost"
+        ? "**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengerjakan joki. Progres akan dikabari di tiket ini."
+        : "**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengirim Robux.");
     return {
         title: "📋 Cara Menyelesaikan Pesanan",
         description: steps.join("\n") + `\n\n💳 **Pembayaran**\n${config.payment_info ?? "_Admin belum mengatur info pembayaran. Tunggu admin di tiket ini._"}`,
@@ -501,7 +553,7 @@ export function orderButtons(order: Order): Row[] {
             )];
         case "diproses":
             return [row(
-                button(`shop:done:${id}`, "Robux Terkirim (Selesai)", ButtonStyle.Success, "🎉"),
+                button(`shop:done:${id}`, order.method === "boost" ? "Joki Selesai" : "Robux Terkirim (Selesai)", ButtonStyle.Success, "🎉"),
                 button(`shop:cancel:${id}`, "Batalkan (Admin)", ButtonStyle.Danger, "✖️"),
             )];
         case "selesai":

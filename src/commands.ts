@@ -27,6 +27,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             { type: ApplicationCommandOptionType.Channel, name: "kategori_tiket", description: "Kategori tempat channel tiket dibuat", channel_types: [ChannelType.GuildCategory] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_log", description: "Channel log transaksi (khusus admin)", channel_types: [ChannelType.GuildText] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_testimoni", description: "Channel publik untuk vouch/testimoni", channel_types: [ChannelType.GuildText] },
+            { type: ApplicationCommandOptionType.Boolean, name: "joki_aktif", description: "Terima order Joki / Boosting rank? Harga dihitung manual oleh admin" },
             { type: ApplicationCommandOptionType.Boolean, name: "gig_aktif", description: "Terima order Gift In Game (GIG)? Harga GIG dihitung manual oleh admin" },
             { type: ApplicationCommandOptionType.Integer, name: "minimal_order", description: "Minimal Robux per order", min_value: 1 },
             { type: ApplicationCommandOptionType.Integer, name: "maksimal_order", description: "Maksimal Robux per order", min_value: 1 },

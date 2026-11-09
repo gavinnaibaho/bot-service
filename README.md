@@ -13,6 +13,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
 | 🚚 4 metode | 🔐 **Via Login**, 👤 **Via Send Username**, 👥 **Group Payout** (harga tetap per 100 R$) dan 🎁 **Gift In Game / GIG** (harga dihitung manual oleh admin) |
 | 💰 Daftar harga | `/setup-harga` mengatur harga satu metode dan mengirim daftar harga (`⏣ 100 Robux — Rp 15.500` … `⏣ 5.000 Robux`) ke channel pilihan. Daftar otomatis diperbarui saat harga diubah |
+| 🏆 Joki / Boosting | Form: nama game, rank/level sekarang, target, nickname/ID akun, catatan. Harga & estimasi waktu dihitung admin, diisi saat konfirmasi bayar. Aktif/nonaktif lewat `/toko-setup joki_aktif` |
 | 🎁 Order GIG | Form khusus: nama map/game, nama item, jumlah Robux, username. Saat konfirmasi bayar, admin mengisi total harga secara manual |
 | 💳 Bayar manual | Pembeli kirim foto bukti transfer langsung di chat tiket, admin cek lalu klik **Konfirmasi Bayar** |
 | 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode berharga tetap |
@@ -27,8 +28,8 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 ## Alur pesanan
 
 ```
-Pembeli klik 🛒 Beli Robux → pilih metode → isi form
-        (GIG: map/game, item, jumlah Robux, username | lainnya: jumlah, username, catatan)
+Pembeli klik 🛒 Order Sekarang → pilih layanan → isi form
+        (GIG: map/game, item, jumlah Robux, username | Joki: game, rank sekarang → target, akun, catatan | lainnya: jumlah, username, catatan)
         ↓
 Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
         ↓  pembeli transfer & kirim foto bukti di chat tiket
@@ -46,7 +47,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
 
 | Perintah | Fungsi |
 |---|---|
-| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, GIG aktif/nonaktif, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya |
+| `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, GIG & Joki aktif/nonaktif, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya |
 | `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |

@@ -23,7 +23,7 @@ await s.saveShopConfig(cfg);
 const got = await s.getShopConfig(G);
 assert(got!.admin_role_id === "333333333333333333" && got!.price_group === 11000, "simpan/ambil config, ID tidak terpotong");
 
-assert(JSON.stringify(p.enabledMethods(got!)) === JSON.stringify(["gift", "group", "login"]), "metode dengan harga 0 disembunyikan");
+assert(JSON.stringify(p.enabledMethods(got!)) === JSON.stringify(["gift", "group", "login", "boost"]), "metode dengan harga 0 disembunyikan");
 assert(!p.validateOrder(got!, 1000, "username").ok, "metode nonaktif ditolak");
 assert((p.validateOrder(got!, 1000, "login") as any).price === 90000, "harga via login");
 let v = p.validateOrder(got!, 500000, "gift");
@@ -105,4 +105,20 @@ assert(pls.length === 1 && pls[0]!.channel_id === "c2" && (await s.getPriceList(
 await s.deletePriceList(G, "username");
 assert((await s.getPriceList(G, "username")) === null, "hapus daftar harga");
 assert(s.defaultConfig("x").price_gift === 1, "GIG aktif secara default");
+
+// joki / boosting
+const cj = (await s.getShopConfig(G))!;
+assert(cj.boost_enabled === true && p.isMethodEnabled(cj, "boost"), "joki aktif secara default");
+const vj = p.validateOrder(cj, NaN, "boost");
+assert(vj.ok && vj.robux === 0 && vj.price === 0, "joki tidak butuh jumlah Robux, harga manual");
+assert(p.isManual("boost") && p.isManual("gift") && !p.isManual("login"), "metode manual");
+const U3 = "444444444444444445";
+const joki = await s.createOrder({ guild_id: G, user_id: U3, robux: 0, price: 0, stock_cost: 0, method: "boost", roblox_username: "Gavin#1234", note: "Mobile Legends: Epic III → Mythic" });
+assert(joki.method === "boost" && joki.roblox_username === "Gavin#1234", "buat order joki");
+const jc = await s.confirmOrder(G, joki.id, "555", 250000);
+assert(jc?.price === 250000 && jc?.status === "diproses", "konfirmasi joki dengan harga manual");
+await s.completeOrder(G, joki.id, "555");
+assert((await s.getGlobalTotals(G)).spending === 390000 + 250000, "pendapatan joki masuk statistik & leaderboard");
+await s.saveShopConfig({ ...cj, boost_enabled: false });
+assert(!p.isMethodEnabled((await s.getShopConfig(G))!, "boost"), "joki bisa dinonaktifkan");
 });

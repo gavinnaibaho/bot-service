@@ -16,7 +16,7 @@ import { hasPermission, trim } from "./tools";
 import * as shopDb from "./db";
 import type { DeliveryMethod, Order, OrderStatus, ShopConfig } from "./db";
 import { SHOP_COMMAND_NAMES } from "./commands";
-import { METHODS, METHOD_LABEL, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
+import { METHODS, METHOD_LABEL, isManual, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
 import {
     instructionsEmbed,
     methodFromValue,
@@ -151,8 +151,8 @@ async function refreshPriceLists(api: Api, guildId: string, only?: DeliveryMetho
 
 /** Setelah pembayaran dikonfirmasi: kabari pembeli di tiket & catat ke log. */
 async function announceConfirmed(api: Api, config: ShopConfig, updated: Order) {
-    const reminder = updated.method === "login" ? "\n🔐 Admin akan meminta data login di tiket ini. Ingat untuk ganti password setelah selesai." : "";
-    const what = updated.method === "gift" ? "item sedang diproses" : "Robux sedang diproses";
+    const reminder = updated.method === "login" || updated.method === "boost" ? "\n🔐 Admin akan meminta data login di tiket ini. Ingat untuk ganti password setelah selesai." : "";
+    const what = updated.method === "gift" ? "item sedang diproses" : updated.method === "boost" ? "joki segera dikerjakan" : "Robux sedang diproses";
     await postOrderStatus(api, updated, `⚙️ Pembayaran diterima — ${orderCode(updated.id)}`, `<@${updated.user_id}> pembayaranmu sudah dikonfirmasi, ${what}.${reminder}`);
     await logToChannel(api, config, orderEmbed(updated, `✅ Pembayaran dikonfirmasi ${orderCode(updated.id)}`));
 }
@@ -234,6 +234,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (v("channel_log") !== undefined) c.log_channel_id = v("channel_log");
                         if (v("channel_testimoni") !== undefined) c.testimonial_channel_id = v("channel_testimoni");
                         if (v("gig_aktif") !== undefined) c.price_gift = v("gig_aktif") ? 1 : 0;
+                        if (v("joki_aktif") !== undefined) c.boost_enabled = Boolean(v("joki_aktif"));
                         if (v("minimal_order") !== undefined) c.min_order = v("minimal_order");
                         if (v("maksimal_order") !== undefined) c.max_order = v("maksimal_order");
                         if (v("channel_pengumuman") !== undefined) c.announce_channel_id = v("channel_pengumuman");
@@ -257,7 +258,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
                                     `**Log:** ${c.log_channel_id ? `<#${c.log_channel_id}>` : "_belum_"}`,
                                     `**Testimoni:** ${c.testimonial_channel_id ? `<#${c.testimonial_channel_id}>` : "_belum_"}`,
-                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${m === "gift" ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
+                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
                                     `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? `<@&${c.ping_role_id}>` : "_tidak ada_"}`,
@@ -274,7 +275,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
                     case "setup-harga": {
                         if (!config) return say("❌ Jalankan `/toko-setup` dulu.");
-                        const method = getOption(opts, "metode")?.value as Exclude<DeliveryMethod, "gift">;
+                        const method = getOption(opts, "metode")?.value as Exclude<DeliveryMethod, "gift" | "boost">;
                         const harga = Number(getOption(opts, "harga")?.value ?? 0);
                         const channelOpt = getOption(opts, "channel")?.value as string | undefined;
                         const existing = await shopDb.getPriceList(guildId, method);
@@ -475,7 +476,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (!admin) return say("❌ Hanya admin yang bisa mengonfirmasi pembayaran.");
                         if (!["menunggu_pembayaran", "menunggu_verifikasi"].includes(order.status)) return stale();
                         // GIG: admin mengisi total harga yang dibayar pembeli
-                        if (order.method === "gift") {
+                        if (isManual(order.method)) {
                             await api.interactions.createModal(interaction.id, interaction.token, gigPriceModal(order));
                             replied = true;
                             return;
@@ -496,7 +497,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const newRoles = await applyLoyaltyRoles(api, guildId, done.user_id);
                         const roleNote = newRoles.length ? `\n🏅 Kamu mendapat role baru: ${newRoles.map((r) => `<@&${r}>`).join(", ")}` : "";
                         await postOrderStatus(api, done, `🎉 Pesanan Selesai — ${orderCode(orderId)}`,
-                            `<@${done.user_id}> Robux sudah dikirim! Terima kasih sudah berbelanja 🙏\nBantu kami dengan memberi testimoni lewat tombol ⭐ di bawah.${roleNote}`);
+                            `<@${done.user_id}> ${done.method === "boost" ? "Joki sudah selesai! Jangan lupa ganti password akunmu 🔐" : done.method === "gift" ? "Item sudah dikirim!" : "Robux sudah dikirim!"} Terima kasih sudah berbelanja 🙏\nBantu kami dengan memberi testimoni lewat tombol ⭐ di bawah.${roleNote}`);
                         await logToChannel(api, config, orderEmbed(done, `🎉 Selesai ${orderCode(orderId)}`));
                         if (config.history_channel_id) {
                             const buyer: UserLike = await api.users.get(done.user_id).catch(() => ({ id: done.user_id, username: "pembeli" }));
@@ -603,11 +604,16 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     const amount = parseAmount(values.amount ?? "");
                     const username = (values.username ?? "").trim();
                     const method = methodFromValue(idStr);
+                    const extra = trim((values.note ?? "").trim(), 300);
                     const note = method === "gift"
                         ? trim(`${(values.game ?? "").trim()} — ${(values.item ?? "").trim()}`, 200)
-                        : trim((values.note ?? "").trim(), 200) || null;
+                        : method === "boost"
+                            ? `${(values.game ?? "").trim()}: ${(values.current ?? "").trim()} → ${(values.target ?? "").trim()}${extra ? `\n${extra}` : ""}`
+                            : extra || null;
 
-                    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return say("❌ Username Roblox tidak valid (3–20 karakter: huruf, angka, underscore).");
+                    if (method === "boost") {
+                        if (username.length < 2 || username.length > 60) return say("❌ Nickname / ID akun game harus 2–60 karakter.");
+                    } else if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return say("❌ Username Roblox tidak valid (3–20 karakter: huruf, angka, underscore).");
                     if (!method) return say("❌ Metode pengiriman tidak valid, ulangi dari panel toko.");
                     const check = validateOrder(config, amount, method);
                     if (!check.ok) return say(`❌ ${check.error}`);
@@ -636,7 +642,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (config.admin_role_id) overwrites.push({ id: config.admin_role_id, type: OverwriteType.Role, allow: (view | PermissionFlagsBits.ManageMessages).toString() });
 
                     const username_ = sanitizeChannelName(member?.user.username ?? "pembeli");
-                    const prefix = order.method === "gift" ? "gig" : "order";
+                    const prefix = order.method === "gift" ? "gig" : order.method === "boost" ? "joki" : "order";
                     let channel: { id: string } | null = null;
                     try {
                         channel = await api.guilds.createChannel(guildId, {
@@ -644,7 +650,9 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             type: ChannelType.GuildText,
                             parent_id: config.ticket_category_id ?? undefined,
                             permission_overwrites: overwrites,
-                            topic: `Pesanan ${orderCode(order.id)} · ${robux(order.robux)} via ${METHOD_LABEL[order.method]}${order.method === "gift" && order.note ? ` (${order.note})` : ""} · Pembeli ${userId}`.slice(0, 1024),
+                            topic: (order.method === "boost"
+                                ? `Pesanan ${orderCode(order.id)} · Joki ${order.note?.split("\n")[0] ?? ""} · Pembeli ${userId}`
+                                : `Pesanan ${orderCode(order.id)} · ${robux(order.robux)} via ${METHOD_LABEL[order.method]}${order.method === "gift" && order.note ? ` (${order.note})` : ""} · Pembeli ${userId}`).slice(0, 1024),
                         }, { reason: `Tiket pesanan ${orderCode(order.id)}` });
                     } catch (err) {
                         console.log(`[shop] gagal membuat tiket: ${err}`);
@@ -670,7 +678,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!Number.isInteger(price) || price <= 0) return say("❌ Total harga harus berupa angka Rupiah, contoh `65000`.");
                     const updated = await shopDb.confirmOrder(guildId, Number(idStr), userId, price);
                     if (!updated) return say("Status pesanan sudah berubah, konfirmasi dibatalkan.");
-                    await say(`✅ Pembayaran GIG dikonfirmasi: ${rupiah(price)}.`);
+                    await say(`✅ Pembayaran ${updated.method === "boost" ? "joki" : "GIG"} dikonfirmasi: ${rupiah(price)}.`);
                     const msg = (interaction as any).message;
                     if (msg?.id) await api.channels.editMessage(msg.channel_id, msg.id, { components: [] }).catch(() => null);
                     await announceConfirmed(api, config, updated);
