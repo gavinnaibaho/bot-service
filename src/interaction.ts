@@ -391,14 +391,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
 
                     case "toko-panel": {
+                        await defer(); // kirim panel bisa lebih dari 3 detik
                         const c = config ?? shopDb.defaultConfig(guildId);
                         const msg = await api.channels.createMessage(interaction.channel!.id, panelMessage(c)).catch((err: unknown) => {
                             console.log(`[shop] gagal kirim panel: ${err}`);
                             return null;
                         });
-                        if (!msg) return say("❌ Gagal mengirim panel. Pastikan bot bisa melihat & mengirim pesan di channel ini.");
+                        if (!msg) return edit({ content: "❌ Gagal mengirim panel. Pastikan bot bisa melihat & mengirim pesan di channel ini." });
+                        // Hapus panel sebelumnya supaya tidak ada dua panel aktif.
+                        const oldPanel = c.panel_channel_id && c.panel_message_id && c.panel_message_id !== msg.id
+                            ? await api.channels.deleteMessage(c.panel_channel_id, c.panel_message_id).then(() => true).catch(() => false)
+                            : false;
                         await shopDb.saveShopConfig({ ...c, panel_channel_id: msg.channel_id, panel_message_id: msg.id });
-                        return say("✅ Panel toko terkirim. Panel ini akan otomatis diperbarui saat harga atau status toko berubah.");
+                        return edit({ content: `✅ Panel toko terkirim.${oldPanel ? " Panel lama sudah dihapus otomatis." : ""} Panel ini akan otomatis diperbarui saat harga atau status toko berubah.` });
                     }
 
                     case "toko-statistik": {
