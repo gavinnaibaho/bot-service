@@ -195,7 +195,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         options: [
             {
                 name: "biaya",
-                description: "Biaya jasa middleman yang ditampilkan, contoh: 5% (min. Rp5.000). Kosongkan = tetap seperti sebelumnya",
+                description: "Biaya jasa middleman, contoh: 5% (min. Rp5.000)",
                 type: ApplicationCommandOptionType.String,
                 max_length: 200,
                 required: false,

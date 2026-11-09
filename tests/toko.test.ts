@@ -142,3 +142,14 @@ assert((await s.finishMiddleman(G, mm.id, "dibatalkan", "555")) === null, "statu
 await s.saveMiddlemanConfig({ guild_id: G, fee: "5%", panel_channel_id: "p", panel_message_id: "m" });
 assert((await s.getMiddlemanConfig(G)).fee === "5%", "biaya middleman tersimpan");
 });
+
+test("deskripsi command maks. 100 karakter (batas Discord)", async () => {
+    const { shopCommandsPayload } = await import("../src/commands");
+    const walk = (items: any[]): string[] => items.flatMap((c) => [
+        ...(c.description && c.description.length > 100 ? [`${c.name}: ${c.description.length}`] : []),
+        ...(c.name?.length > 32 ? [`nama ${c.name}`] : []),
+        ...walk(c.options ?? []),
+        ...(c.choices ?? []).filter((x: any) => x.name.length > 100).map((x: any) => `choice ${x.name}`),
+    ]);
+    expect(walk(shopCommandsPayload as any[])).toEqual([]);
+});
