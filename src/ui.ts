@@ -93,7 +93,7 @@ export function panelMessage(config: ShopConfig) {
         type: 17,
         accent_color: config.is_open ? BRAND_COLOR : 0xe74c3c,
         components: [
-            text(`# 🛒 ${store}\n**Layanan Top Up Robux & Jasa Game**`),
+            text(`# 🍀 ${store}\n**Layanan Top Up Robux & Jasa Game**`),
             divider(),
             text(`${status}\n\nSilakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.`),
             text(
