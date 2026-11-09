@@ -273,15 +273,15 @@ export function leaderboardEmbed(store: string, entries: { user_id: string; spen
 }
 
 /**
- * Nama channel status: "🟢 | ROBUX USERNAME" / "🔴 | ROBUX USERNAME",
- * khusus toko: "🟢 | BUM STORE | OPEN" / "🔴 | BUM STORE | CLOSE".
+ * Nama channel status: "🟢 ┃ ROBUX USERNAME" / "🔴 ┃ ROBUX USERNAME",
+ * khusus toko: "🟢 ┃ BUM STORE ┃ OPEN" / "🔴 ┃ BUM STORE ┃ CLOSE".
  * Teks label diambil dari nama channel yang sekarang.
  */
 export function serviceStatusChannelName(current: string, on: boolean, isStore: boolean): string {
-    let base = current.replace(/^\s*(🟢|🔴|⚪|🟡)\s*[|・·\-]?\s*/u, "").trim();
-    if (isStore) base = base.replace(/\s*[|・·\-]\s*(OPEN|CLOSE|CLOSED|BUKA|TUTUP)\s*$/i, "").trim();
+    let base = current.replace(/^\s*(🟢|🔴|⚪|🟡)\s*[|┃・·\-]?\s*/u, "").trim();
+    if (isStore) base = base.replace(/\s*[|┃・·\-]\s*(OPEN|CLOSE|CLOSED|BUKA|TUTUP)\s*$/i, "").trim();
     if (!base) base = isStore ? "TOKO" : "LAYANAN";
-    const name = `${on ? "🟢" : "🔴"} | ${base}${isStore ? ` | ${on ? "OPEN" : "CLOSE"}` : ""}`;
+    const name = `${on ? "🟢" : "🔴"} ┃ ${base}${isStore ? ` ┃ ${on ? "OPEN" : "CLOSE"}` : ""}`;
     return name.slice(0, 100);
 }
 

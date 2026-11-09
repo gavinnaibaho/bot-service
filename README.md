@@ -56,7 +56,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/announce [channel] [ping] [role] [warna] [gambar]` | Kirim pengumuman penting lewat form. Opsi `gambar` untuk upload banner langsung. Channel default = channel pengumuman toko |
 | `/kirim-pesan [channel]` | Kirim pesan teks biasa atas nama bot (tanpa embed), maks. 2000 karakter |
 | `/toko-reset-tiket konfirmasi:RESET` | Hapus semua data pesanan (mis. pesanan tes) dan mulai nomor dari #0001. Pengaturan, harga, dan role loyalitas tetap. Ditolak jika masih ada pesanan aktif |
-| `/status-channel atur\|hapus\|daftar` | Hubungkan channel (mis. voice di SERVER STATS) ke status toko atau layanan. Namanya otomatis berganti `🟢 \| …` / `🔴 \| …` saat /open, /close, /setup-harga, atau /toko-setup |
+| `/status-channel atur\|hapus\|daftar` | Hubungkan channel (mis. voice di SERVER STATS) ke status toko atau layanan. Namanya otomatis berganti `🟢 ┃ …` / `🔴 ┃ …` saat /open, /close, /setup-harga, atau /toko-setup |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |
 | `/toko-statistik` | Panel admin |
