@@ -171,7 +171,7 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
     const updateField = { name: "📅 Update", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false };
     if (open) {
         return {
-            content: `${ping.text ? `${ping.text} ` : ""}**${store} OPEN!**`,
+            content: `${ping.text ? `${ping.text} ` : ""}🔔 **${store} OPEN!**`,
             embeds: [{
                 description: `🟢 **${store} sudah buka sekarang**\nSilakan lakukan order kamu sekarang!`,
                 fields: [...orderField, updateField],
