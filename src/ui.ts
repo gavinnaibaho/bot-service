@@ -92,14 +92,25 @@ export function avatarUrl(user: UserLike, size = 128): string {
 
 const displayName = (u: UserLike) => u.global_name || u.username;
 
+/**
+ * Mention untuk role ping. Role @everyone punya ID yang sama dengan server,
+ * dan harus ditulis "@everyone" (bukan <@&id>) supaya benar-benar mem-ping.
+ */
+export function rolePing(guildId: string, roleId: string | null) {
+    if (!roleId) return { text: "", allowed: { parse: [] as ("everyone" | "roles" | "users")[] } as { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] } };
+    if (roleId === guildId) return { text: "@everyone", allowed: { parse: ["everyone"] as ("everyone" | "roles" | "users")[] } };
+    return { text: `<@&${roleId}>`, allowed: { roles: [roleId] } as { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] } };
+}
+
 /** Pengumuman toko buka/tutup. Saat buka, role ping (mis. @Member) ikut di-mention. */
 export function storeAnnouncement(config: ShopConfig, open: boolean, reason: string | null) {
+    const ping = rolePing(config.guild_id, config.ping_role_id);
     const store = config.store_name;
     const orderField = config.panel_channel_id ? [{ name: "Order di", value: `<#${config.panel_channel_id}>`, inline: false }] : [];
     const updateField = { name: "📅 Update", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false };
     if (open) {
         return {
-            content: `${config.ping_role_id ? `<@&${config.ping_role_id}> ` : ""}🔔 **${store} sudah OPEN!**`,
+            content: `${ping.text ? `${ping.text} ` : ""}🔔 **${store} sudah OPEN!**`,
             embeds: [{
                 title: `🟢 ${store} OPEN!`,
                 description: `✅ **${store} sekarang BUKA!**\nSilakan lakukan order Robux kamu sekarang!\n\n📌 Klik **🛒 Beli Robux** di panel toko, ya!`,
@@ -108,7 +119,7 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
                 footer: { text: `${store} • Trusted Robux Seller` },
                 timestamp: new Date().toISOString(),
             }] as APIEmbed[],
-            allowed_mentions: config.ping_role_id ? { roles: [config.ping_role_id] } : { parse: [] as [] },
+            allowed_mentions: ping.allowed,
         };
     }
     return {

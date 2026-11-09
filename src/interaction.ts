@@ -28,6 +28,7 @@ import {
     priceListMessage,
     announceModal,
     announceMessage,
+    rolePing,
     panelMessage,
     paymentInfoModal,
     priceEmbed,
@@ -261,7 +262,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
-                                    `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? `<@&${c.ping_role_id}>` : "_tidak ada_"}`,
+                                    `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? (c.ping_role_id === guildId ? "@everyone" : `<@&${c.ping_role_id}>`) : "_tidak ada_"}`,
                                     `**Riwayat:** ${c.history_channel_id ? `<#${c.history_channel_id}>` : "_belum_"} · **Leaderboard:** ${c.leaderboard_channel_id ? `<#${c.leaderboard_channel_id}>` : "_belum_"}`,
                                     `**Status:** ${c.is_open ? "🟢 Buka" : "🔴 Tutup"} · **Pengumuman:** ${c.announce_channel_id ? `<#${c.announce_channel_id}>` : "_belum_"} · **Ganti nama channel:** ${c.rename_channel ? "ya" : "tidak"}`,
                                 ].join("\n"),
@@ -577,8 +578,8 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     let allowed: { parse?: ("everyone" | "roles" | "users")[]; roles?: string[] } = { parse: [] };
                     if (ping === "everyone") { content = "@everyone"; allowed = { parse: ["everyone"] }; }
                     else if (ping === "here") { content = "@here"; allowed = { parse: ["everyone"] }; }
-                    else if (ping === "store" && config?.ping_role_id) { content = `<@&${config.ping_role_id}>`; allowed = { roles: [config.ping_role_id] }; }
-                    else if (ping === "role" && roleId) { content = `<@&${roleId}>`; allowed = { roles: [roleId] }; }
+                    else if (ping === "store" && config?.ping_role_id) { const rp = rolePing(guildId, config.ping_role_id); content = rp.text; allowed = rp.allowed; }
+                    else if (ping === "role" && roleId) { const rp = rolePing(guildId, roleId); content = rp.text; allowed = rp.allowed; }
 
                     const store = config?.store_name ?? shopDb.DEFAULT_STORE_NAME;
                     const msg = await api.channels.createMessage(channelId!, announceMessage(store, title, body, parseInt(colorHex ?? "2ecc71", 16), image, content, allowed)).catch((err: unknown) => {
