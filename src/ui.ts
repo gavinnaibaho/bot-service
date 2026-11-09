@@ -79,7 +79,7 @@ export function panelMessage(config: ShopConfig) {
             },
             {
                 name: "Layanan Lain",
-                value: [mark("gift", "Gift In Game (GIG)"), mark("boost", "Joki / Boosting"), "Hubungi Admin"].map((t) => `• ${t}`).join("\n"),
+                value: [mark("gift", "Gift In Game (GIG)"), mark("boost", "Joki / Boosting"), "Tanya Admin"].map((t) => `• ${t}`).join("\n"),
                 inline: true,
             },
             {
@@ -109,7 +109,7 @@ export function panelMessage(config: ShopConfig) {
         if (!available || !config.is_open) b.disabled = true;
         return b;
     });
-    buttons.push(button("shop:ask", "Hubungi Admin", ButtonStyle.Secondary, "💬"));
+    buttons.push(button("shop:ask", "Tanya", ButtonStyle.Secondary, "❓"));
 
     const rows: Row[] = [];
     for (let k = 0; k < buttons.length; k += 3) rows.push(row(...buttons.slice(k, k + 3)));
@@ -121,7 +121,7 @@ export function askTicketMessage(userId: string, adminRoleId: string | null, sto
     return {
         content: `Halo <@${userId}>!${adminRoleId ? ` <@&${adminRoleId}>` : ""}`,
         embeds: [{
-            title: "💬 Hubungi Admin",
+            title: "❓ Tiket Pertanyaan",
             description: `Silakan tulis pertanyaanmu seputar jual beli & Robux di sini. Admin ${store} akan segera membalas.\n\nKalau sudah selesai, klik **🔒 Tutup Tiket**.`,
             color: BRAND_COLOR,
         }] as APIEmbed[],

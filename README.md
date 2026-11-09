@@ -9,8 +9,8 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | Fitur | Keterangan |
 |---|---|
 | 🟢🔴 Buka/tutup | `/open` dan `/close [alasan]` secara manual. Pengumuman OPEN/CLOSE otomatis (ping role saat buka), tombol Beli nonaktif saat tutup, dan nama channel panel berganti 🟢/🔴 |
-| 🛒 Order Center | Panel bergaya profesional: status buka/tutup, daftar layanan (Robux & Layanan Lain), alur pemesanan, catatan keamanan, dan tombol langsung per layanan + **💬 Hubungi Admin**. Layanan nonaktif dicoret dan tombolnya bertanda **(Tidak Tersedia)**; saat toko tutup semua tombol order nonaktif. Otomatis diperbarui |
-| 💬 Hubungi Admin | Tombol Hubungi Admin membuat tiket pertanyaan privat (pembeli + admin) yang bisa ditutup kapan saja |
+| 🛒 Order Center | Panel bergaya profesional: status buka/tutup, daftar layanan (Robux & Layanan Lain), alur pemesanan, catatan keamanan, dan tombol langsung per layanan + **❓ Tanya**. Layanan nonaktif dicoret dan tombolnya bertanda **(Tidak Tersedia)**; saat toko tutup semua tombol order nonaktif. Otomatis diperbarui |
+| ❓ Tiket Tanya | Tombol Tanya membuat tiket pertanyaan privat (pembeli + admin) yang bisa ditutup kapan saja |
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
 | 🚚 4 metode | 🔐 **Via Login**, 👤 **Via Send Username**, 👥 **Group Payout** (harga tetap per 100 R$) dan 🎁 **Gift In Game / GIG** (harga dihitung manual oleh admin) |
 | 💰 Daftar harga | `/setup-harga` mengatur harga satu metode dan mengirim daftar harga (`⏣ 100 Robux — Rp 15.500` … `⏣ 5.000 Robux`) ke channel pilihan. Daftar otomatis diperbarui saat harga diubah |
