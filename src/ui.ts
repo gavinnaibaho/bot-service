@@ -185,8 +185,7 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
     return {
         content: `🔕 ${store} sudah **CLOSE**. Sampai jumpa besok!`,
         embeds: [{
-            title: `🔴 ${store} CLOSE!`,
-            description: `❌ **${store} sudah TUTUP!**\n${reason ? `> ${reason}\n` : ""}\nTerima kasih sudah berbelanja! 🙏\nPesanan yang sedang berjalan tetap akan diproses.`,
+            description: `🔴 **${store} sudah TUTUP!**\n${reason ? `> ${reason}\n` : ""}\nTerima kasih sudah berbelanja! 🙏\nPesanan yang sedang berjalan tetap akan diproses.`,
             fields: [...orderField, updateField],
             color: brandColor(),
             footer: { text: `${store} • Trusted Robux Seller` },
