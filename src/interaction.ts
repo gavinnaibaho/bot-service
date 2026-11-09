@@ -171,8 +171,8 @@ async function postOrderStatus(api: Api, order: Order, title: string, note?: str
 async function applyLoyaltyRoles(api: Api, guildId: string, userId: string): Promise<string[]> {
     const roles = await shopDb.getLoyaltyRoles(guildId);
     if (roles.length === 0) return [];
-    const total = await shopDb.getUserTotalRobux(guildId, userId);
-    const eligible = roles.filter((r) => total >= r.min_robux).map((r) => r.role_id);
+    const total = await shopDb.getUserTotalSpent(guildId, userId);
+    const eligible = roles.filter((r) => total >= r.min_spent).map((r) => r.role_id);
     if (eligible.length === 0) return [];
     try {
         const member = await api.guilds.getMember(guildId, userId);
@@ -393,10 +393,10 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const subOpts = sub.options as APIApplicationCommandInteractionDataOption[] | undefined;
                         if (sub.name === "atur") {
                             const roleId = getOption(subOpts, "role")?.value as string;
-                            const min = Number(getOption(subOpts, "minimal_robux")?.value);
+                            const min = Number(getOption(subOpts, "minimal_belanja")?.value);
                             if (roleId === guildId) return say("❌ Tidak bisa memakai role @everyone.");
                             await shopDb.setLoyaltyRole(guildId, roleId, min);
-                            return say(`✅ <@&${roleId}> akan diberikan ke pembeli dengan total pembelian ≥ **${robux(min)}**.\n-# Pastikan role bot berada di atas role ini dan bot punya izin Manage Roles.`);
+                            return say(`✅ <@&${roleId}> akan diberikan otomatis ke pembeli dengan total belanja ≥ **${rupiah(min)}** (semua layanan, termasuk GIG & Joki).\n-# Pastikan role bot berada di atas role ini dan bot punya izin Manage Roles.`);
                         }
                         if (sub.name === "hapus") {
                             const roleId = getOption(subOpts, "role")?.value as string;
@@ -408,7 +408,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             embeds: [{
                                 title: "🏅 Role Loyalitas",
                                 color: 0xf1c40f,
-                                description: roles.length ? roles.map((r) => `<@&${r.role_id}> — mulai ${robux(r.min_robux)}`).join("\n") : "_Belum ada. Tambah dengan `/loyalitas atur`._",
+                                description: roles.length ? roles.map((r) => `<@&${r.role_id}> — mulai belanja ${rupiah(r.min_spent)}`).join("\n") : "_Belum ada. Tambah dengan `/loyalitas atur`._",
                             }],
                         });
                     }
@@ -420,7 +420,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
                     case "riwayat": {
                         const orders = await shopDb.getUserOrders(guildId, userId, 10);
-                        const total = await shopDb.getUserTotalRobux(guildId, userId);
+                        const [totalRobux, totalSpent] = await Promise.all([shopDb.getUserTotalRobux(guildId, userId), shopDb.getUserTotalSpent(guildId, userId)]);
                         return reply({
                             embeds: [{
                                 title: "🧾 Riwayat Pesanan",
@@ -428,7 +428,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                 description: orders.length
                                     ? orders.map((o) => `\`${orderCode(o.id)}\` <t:${o.created_at}:d> · ${robux(o.robux)} · ${rupiah(o.price)} · ${STATUS_LABEL[o.status]}`).join("\n")
                                     : "_Kamu belum pernah memesan._",
-                                footer: { text: `Total Robux dibeli: ${total.toLocaleString("id-ID")} R$` },
+                                footer: { text: `Total belanja: ${rupiah(totalSpent)} · Robux dibeli: ${totalRobux.toLocaleString("id-ID")} R$` },
                             }],
                         });
                     }

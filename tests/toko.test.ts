@@ -58,7 +58,7 @@ assert((await s.transitionOrder(G, 2, ["menunggu_pembayaran"], "dibatalkan"))?.s
 
 await s.setLoyaltyRole(G, "666", 500); await s.setLoyaltyRole(G, "777", 5000); await s.setLoyaltyRole(G, "666", 800);
 const roles = await s.getLoyaltyRoles(G);
-assert(roles.length === 2 && roles[0]!.min_robux === 800, "loyalitas upsert & urut");
+assert(roles.length === 2 && roles[0]!.min_spent === 800, "loyalitas upsert & urut");
 assert(await s.deleteLoyaltyRole(G, "777") && !(await s.deleteLoyaltyRole(G, "777")), "hapus loyalitas");
 
 const st = await s.getShopStats(G, p.startOfTodayWIB());

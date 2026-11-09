@@ -139,7 +139,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
     },
     {
         name: "loyalitas",
-        description: "Atur role loyalitas berdasarkan total Robux yang dibeli",
+        description: "Atur role loyalitas berdasarkan total belanja (Rupiah)",
         type: ApplicationCommandType.ChatInput,
         default_member_permissions: ADMIN,
         ...guildOnly,
@@ -148,7 +148,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
                 type: ApplicationCommandOptionType.Subcommand, name: "atur", description: "Tambah/ubah role loyalitas",
                 options: [
                     { type: ApplicationCommandOptionType.Role, name: "role", description: "Role yang diberikan", required: true },
-                    { type: ApplicationCommandOptionType.Integer, name: "minimal_robux", description: "Total Robux minimal untuk dapat role ini", required: true, min_value: 1 },
+                    { type: ApplicationCommandOptionType.Integer, name: "minimal_belanja", description: "Total belanja minimal (Rupiah) untuk dapat role ini, contoh 1 atau 1000000", required: true, min_value: 1 },
                 ],
             },
             {

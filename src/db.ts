@@ -62,7 +62,8 @@ export type Order = {
     updated_at: number;
 };
 
-export type LoyaltyRole = { guild_id: string; role_id: string; min_robux: number };
+/** min_spent = total belanja minimal dalam Rupiah (kolom DB: min_robux). */
+export type LoyaltyRole = { guild_id: string; role_id: string; min_spent: number };
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -175,6 +176,14 @@ CREATE TABLE IF NOT EXISTS shop_pricelists (
         name: "joki / boosting",
         up: async (tx) => {
             await tx`ALTER TABLE shop_config ADD COLUMN boost_enabled INTEGER NOT NULL DEFAULT 1`;
+        },
+    },
+    {
+        version: 7,
+        name: "loyalitas berdasarkan total belanja",
+        up: async (tx) => {
+            // Ambang lama dalam Robux tidak bisa dipakai sebagai Rupiah: atur ulang dengan /loyalitas atur.
+            await tx`DELETE FROM shop_loyalty_roles`;
         },
     },
 ];
@@ -540,12 +549,12 @@ export async function setMethodPrice(guild_id: string, method: Exclude<DeliveryM
 
 export async function getLoyaltyRoles(guild_id: string): Promise<LoyaltyRole[]> {
     const rows = await db`SELECT * FROM shop_loyalty_roles WHERE guild_id = ${guild_id} ORDER BY min_robux ASC`;
-    return rows.map((r: any) => ({ guild_id: String(r.guild_id), role_id: String(r.role_id), min_robux: Number(r.min_robux) }));
+    return rows.map((r: any) => ({ guild_id: String(r.guild_id), role_id: String(r.role_id), min_spent: Number(r.min_robux) }));
 }
 
-export async function setLoyaltyRole(guild_id: string, role_id: string, min_robux: number) {
+export async function setLoyaltyRole(guild_id: string, role_id: string, min_spent: number) {
     await db`
-    INSERT INTO shop_loyalty_roles (guild_id, role_id, min_robux) VALUES (${guild_id}, ${role_id}, ${min_robux})
+    INSERT INTO shop_loyalty_roles (guild_id, role_id, min_robux) VALUES (${guild_id}, ${role_id}, ${min_spent})
     ON CONFLICT(guild_id, role_id) DO UPDATE SET min_robux = excluded.min_robux`;
 }
 

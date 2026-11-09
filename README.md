@@ -17,7 +17,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🎁 Order GIG | Form khusus: nama map/game, nama item, jumlah Robux, username. Saat konfirmasi bayar, admin mengisi total harga secara manual |
 | 💳 Bayar manual | Pembeli kirim foto bukti transfer langsung di chat tiket, admin cek lalu klik **Konfirmasi Bayar** |
 | 🧮 Kalkulator | `/harga jumlah:1000` menampilkan harga semua metode berharga tetap |
-| 🏅 Loyalitas | Role otomatis berdasarkan total Robux yang pernah dibeli |
+| 🏅 Loyalitas | Role otomatis berdasarkan total belanja (Rupiah) dari semua layanan, termasuk GIG & Joki. Contoh: `@Customer` mulai Rp1 |
 | 💎 Vouch | Setelah selesai, pembeli kirim rating + ulasan; tampil sebagai **NEW VOUCH** lengkap dengan avatar, nominal, dan status |
 | ⭐ Riwayat transaksi | Channel publik berisi **Transaksi selesai** (pembeli, jenis order, nominal, total transaksi pembeli, admin yang memproses) dan **Tiket Ditutup** |
 | 🏆 Leaderboard | Top 10 pembeli berdasarkan total belanja + jumlah customer & total spending. Pesan di channel leaderboard otomatis diperbarui setiap transaksi selesai; bisa juga dilihat dengan `/leaderboard` |
@@ -81,7 +81,7 @@ Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admi
    - `/toko-pembayaran`, lalu isi rekening/e-wallet/QRIS.
    - `/setup-harga metode:Via Send Username harga:15500 channel:#pricelist` (ulangi untuk Via Login dan Group Payout)
    - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
-   - (opsional) `/loyalitas atur role:@Pelanggan Setia minimal_robux:5000`
+   - (opsional) `/loyalitas atur role:@Customer minimal_belanja:1` (dan misalnya `@Sultan minimal_belanja:1000000`)
    - Di channel toko: `/toko-panel`
 5. **Taruh role bot di atas** role-role loyalitas (Server Settings → Roles).
 
