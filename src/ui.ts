@@ -170,10 +170,9 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
     const updateField = { name: "📅 Update", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false };
     if (open) {
         return {
-            content: `${ping.text ? `${ping.text} ` : ""}🔔 **${store} sudah OPEN!**`,
+            content: `${ping.text ? `${ping.text} ` : ""}**${store} OPEN!**`,
             embeds: [{
-                title: `🟢 ${store} OPEN!`,
-                description: `✅ **${store} sekarang BUKA!**\nSilakan lakukan order Robux kamu sekarang!\n\n📌 Klik **🛒 Beli Robux** di panel toko, ya!`,
+                description: `🟢 **${store} sudah buka sekarang**\nSilakan lakukan order kamu sekarang!`,
                 fields: [...orderField, updateField],
                 color: brandColor(),
                 footer: { text: `${store} • Trusted Robux Seller` },
