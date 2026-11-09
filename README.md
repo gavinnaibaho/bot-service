@@ -24,6 +24,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 | 🏆 Leaderboard | Top 10 pembeli berdasarkan total belanja + jumlah customer & total spending. Pesan di channel leaderboard otomatis diperbarui setiap transaksi selesai; bisa juga dilihat dengan `/leaderboard` |
 | 📊 Panel admin | `/toko-statistik`: pendapatan hari ini/7/30 hari, pesanan tertunda, top pembeli |
 | 📢 Pengumuman | `/announce`: form judul, isi, dan gambar; pilih channel, warna, dan ping (@everyone, @here, role ping toko, atau role lain) |
+| 🎨 Warna toko | Semua pesan bot (panel, tiket, log, vouch, riwayat, leaderboard, pengumuman) memakai satu warna yang sama. Atur dengan `/toko-setup warna:#FF8FC7` |
 | 📝 Log | Semua kejadian (order baru, konfirmasi, selesai, batal, buka/tutup) dicatat ke channel log |
 
 ## Alur pesanan

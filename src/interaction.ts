@@ -25,7 +25,8 @@ import {
     orderModal,
     buyMethodPicker,
     askTicketMessage,
-    BRAND_COLOR,
+    brandColor,
+    setBrandColor,
     gigPriceModal,
     priceListMessage,
     announceModal,
@@ -227,6 +228,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
         try {
             const config = await shopDb.getShopConfig(guildId);
+            setBrandColor(config?.brand_color);
             const admin = isAdmin(member, config);
 
             // ===================== Slash commands =====================
@@ -244,6 +246,12 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (v("channel_testimoni") !== undefined) c.testimonial_channel_id = v("channel_testimoni");
                         if (v("gig_aktif") !== undefined) c.price_gift = v("gig_aktif") ? 1 : 0;
                         if (v("joki_aktif") !== undefined) c.boost_enabled = Boolean(v("joki_aktif"));
+                        if (v("warna") !== undefined) {
+                            const hex = String(v("warna")).trim().replace(/^#/, "");
+                            if (!/^[0-9a-fA-F]{6}$/.test(hex)) return say("❌ Warna harus kode hex 6 digit, contoh `#FF8FC7`.");
+                            c.brand_color = parseInt(hex, 16);
+                            setBrandColor(c.brand_color);
+                        }
                         if (v("minimal_order") !== undefined) c.min_order = v("minimal_order");
                         if (v("maksimal_order") !== undefined) c.max_order = v("maksimal_order");
                         if (v("channel_pengumuman") !== undefined) c.announce_channel_id = v("channel_pengumuman");
@@ -261,7 +269,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         await reply({
                             embeds: [{
                                 title: "⚙️ Pengaturan Toko",
-                                color: BRAND_COLOR,
+                                color: brandColor(),
                                 description: [
                                     `**Role admin:** ${c.admin_role_id ? `<@&${c.admin_role_id}>` : "_belum (hanya yang punya Manage Server)_"}`,
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
@@ -270,7 +278,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
-                                    `**Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? (c.ping_role_id === guildId ? "@everyone" : `<@&${c.ping_role_id}>`) : "_tidak ada_"}`,
+                                    `**Warna toko:** \`#${c.brand_color.toString(16).padStart(6, "0").toUpperCase()}\` · **Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? (c.ping_role_id === guildId ? "@everyone" : `<@&${c.ping_role_id}>`) : "_tidak ada_"}`,
                                     `**Riwayat:** ${c.history_channel_id ? `<#${c.history_channel_id}>` : "_belum_"} · **Leaderboard:** ${c.leaderboard_channel_id ? `<#${c.leaderboard_channel_id}>` : "_belum_"}`,
                                     `**Status:** ${c.is_open ? "🟢 Buka" : "🔴 Tutup"} · **Pengumuman:** ${c.announce_channel_id ? `<#${c.announce_channel_id}>` : "_belum_"} · **Ganti nama channel:** ${c.rename_channel ? "ya" : "tidak"}`,
                                 ].join("\n"),
@@ -311,7 +319,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             await shopDb.savePriceList({ guild_id: guildId, method, channel_id: channelId!, message_id: msg.id });
                         }
                         await refreshPanel(api, guildId);
-                        await logToChannel(api, updated, { title: "💰 Harga diubah", description: `<@${userId}>: ${METHOD_LABEL[method]} → ${harga ? `${rupiah(harga)} / 100 R$` : "nonaktif"}`, color: 0x95a5a6 });
+                        await logToChannel(api, updated, { title: "💰 Harga diubah", description: `<@${userId}>: ${METHOD_LABEL[method]} → ${harga ? `${rupiah(harga)} / 100 R$` : "nonaktif"}`, color: brandColor() });
                         return edit({
                             content: harga === 0
                                 ? `🚫 ${METHOD_LABEL[method]} dinonaktifkan dan daftar harganya dihapus.`
@@ -340,7 +348,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (updated.announce_channel_id) {
                             await api.channels.createMessage(updated.announce_channel_id, storeAnnouncement(updated, open, reason)).catch((err: unknown) => console.log(`[shop] gagal kirim pengumuman: ${err}`));
                         }
-                        await logToChannel(api, updated, { title: open ? "🟢 Toko dibuka" : "🔴 Toko ditutup", description: `Oleh <@${userId}>${reason ? `\nAlasan: ${reason}` : ""}`, color: open ? 0x2ecc71 : 0xe74c3c });
+                        await logToChannel(api, updated, { title: open ? "🟢 Toko dibuka" : "🔴 Toko ditutup", description: `Oleh <@${userId}>${reason ? `\nAlasan: ${reason}` : ""}`, color: brandColor() });
 
                         // Ganti nama channel panel di background: Discord membatasi rename 2x per 10 menit,
                         // jadi jangan sampai menahan balasan command.
@@ -362,7 +370,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const roleId = (getOption(opts, "role")?.value as string | undefined) ?? "";
                         if (ping === "role" && !roleId) return say("❌ Ping **Role pilihan** butuh opsi **role** juga.");
                         if (ping === "store" && !config?.ping_role_id) return say("❌ Role ping toko belum diatur. Pakai `/toko-setup role_ping` atau pilih ping lain.");
-                        const color = (getOption(opts, "warna")?.value as string | undefined) ?? "ff8fc7";
+                        const color = (getOption(opts, "warna")?.value as string | undefined) ?? brandColor().toString(16).padStart(6, "0");
                         const attId = getOption(opts, "gambar")?.value as string | undefined;
                         pendingAnnounceImages.delete(userId);
                         if (attId) {
@@ -440,7 +448,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return reply({
                             embeds: [{
                                 title: "🏅 Role Loyalitas",
-                                color: 0xf1c40f,
+                                color: brandColor(),
                                 description: roles.length ? roles.map((r) => `<@&${r.role_id}> — mulai belanja ${rupiah(r.min_spent)}`).join("\n") : "_Belum ada. Tambah dengan `/loyalitas atur`._",
                             }],
                         });
@@ -457,7 +465,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return reply({
                             embeds: [{
                                 title: "🧾 Riwayat Pesanan",
-                                color: BRAND_COLOR,
+                                color: brandColor(),
                                 description: orders.length
                                     ? orders.map((o) => `\`${orderCode(o.id)}\` <t:${o.created_at}:d> · ${robux(o.robux)} · ${rupiah(o.price)} · ${STATUS_LABEL[o.status]}`).join("\n")
                                     : "_Kamu belum pernah memesan._",
@@ -522,7 +530,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: "❌ Gagal membuat tiket. Admin perlu memberi bot izin **Manage Channels**." });
                     }
                     await api.channels.createMessage(channel.id, askTicketMessage(userId, config.admin_role_id, config.store_name));
-                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}> (\`#${askName}\`)`, color: BRAND_COLOR });
+                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}> (\`#${askName}\`)`, color: brandColor() });
                     return edit({ content: `✅ Tiket pertanyaan dibuat: <#${channel.id}>` });
                 }
                 if (action === "closeask") {
@@ -531,7 +539,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     await say("🔒 Tiket ditutup dalam 5 detik…");
                     const channelId = interaction.message.channel_id;
                     const closedCh: any = await api.channels.get(channelId).catch(() => null);
-                    if (config) await logToChannel(api, config, { title: "🔒 Tiket pertanyaan ditutup", description: `\`#${closedCh?.name ?? "tiket"}\` · oleh <@${userId}>`, color: 0x95a5a6 });
+                    if (config) await logToChannel(api, config, { title: "🔒 Tiket pertanyaan ditutup", description: `\`#${closedCh?.name ?? "tiket"}\` · oleh <@${userId}>`, color: brandColor() });
                     setTimeout(() => {
                         api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket tanya: ${err}`));
                     }, 5000);
@@ -616,7 +624,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             const ch: any = await api.channels.get(channelId).catch(() => null);
                             await postToHistory(api, config, historyTicketClosedEmbed(order, ch?.name ?? `order-${String(orderId).padStart(4, "0")}`, member.user));
                         }
-                        await logToChannel(api, config, { title: `🔒 Tiket ${orderCode(orderId)} ditutup`, description: `Oleh <@${userId}>`, color: 0x95a5a6 });
+                        await logToChannel(api, config, { title: `🔒 Tiket ${orderCode(orderId)} ditutup`, description: `Oleh <@${userId}>`, color: brandColor() });
                         setTimeout(() => {
                             api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket: ${err}`));
                         }, 5000);
@@ -640,7 +648,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return null;
                     });
                     if (!msg) return say(`❌ Gagal mengirim ke <#${idStr}>. Pastikan bot bisa melihat & mengirim pesan di sana.`);
-                    if (config) await logToChannel(api, config, { title: "✉️ Pesan dikirim sebagai bot", description: `<@${userId}> di <#${idStr}>`, color: 0x95a5a6 });
+                    if (config) await logToChannel(api, config, { title: "✉️ Pesan dikirim sebagai bot", description: `<@${userId}> di <#${idStr}>`, color: brandColor() });
                     return say(`✅ Pesan terkirim ke <#${idStr}>.`);
                 }
 
@@ -687,7 +695,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return null;
                     });
                     if (!msg) return done(`❌ Gagal mengirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan${file ? " serta melampirkan file (Attach Files)" : ""} di sana${content ? " (dan punya izin **Mention Everyone** untuk ping)" : ""}.`);
-                    if (config) await logToChannel(api, config, { title: "📢 Pengumuman dikirim", description: `<@${userId}> di <#${channelId}>: **${title}**`, color: 0x95a5a6 });
+                    if (config) await logToChannel(api, config, { title: "📢 Pengumuman dikirim", description: `<@${userId}> di <#${channelId}>: **${title}**`, color: brandColor() });
                     return done(`✅ Pengumuman terkirim ke <#${channelId}>.`);
                 }
 
@@ -696,7 +704,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     const c = config ?? shopDb.defaultConfig(guildId);
                     c.payment_info = trim((values.payment_info ?? "").trim(), 1500) || null;
                     await shopDb.saveShopConfig(c);
-                    return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: BRAND_COLOR }] });
+                    return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: brandColor() }] });
                 }
 
                 if (kind === "order") {

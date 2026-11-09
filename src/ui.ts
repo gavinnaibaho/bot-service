@@ -13,7 +13,6 @@ import {
     METHOD_EMOJI,
     METHOD_HINT,
     METHOD_LABEL,
-    STATUS_COLOR,
     STATUS_LABEL,
     PRICED_METHODS,
     isManual,
@@ -29,8 +28,14 @@ import {
     rupiah,
 } from "./pricing";
 
-/** Warna utama toko (merah muda, senada dengan foto profil bot). */
-export const BRAND_COLOR = 0xff8fc7;
+/** Warna default toko (merah muda, senada dengan foto profil bot). */
+export const DEFAULT_BRAND_COLOR = 0xff8fc7;
+let brand = DEFAULT_BRAND_COLOR;
+/** Warna yang dipakai di SEMUA pesan bot. Diatur per server lewat /toko-setup warna. */
+export function setBrandColor(color: number | null | undefined) {
+    brand = typeof color === "number" && color >= 0 && color <= 0xffffff ? color : DEFAULT_BRAND_COLOR;
+}
+export const brandColor = () => brand;
 
 type Row = APIActionRowComponent<APIButtonComponent>;
 
@@ -91,7 +96,7 @@ export function panelMessage(config: ShopConfig) {
 
     const container = {
         type: 17,
-        accent_color: config.is_open ? BRAND_COLOR : 0xe74c3c,
+        accent_color: brandColor(),
         components: [
             text(`# 🍀 ${store}\n**Layanan Top Up Robux & Jasa Game**`),
             divider(),
@@ -128,7 +133,7 @@ export function askTicketMessage(userId: string, adminRoleId: string | null, sto
         embeds: [{
             title: "❓ Tiket Pertanyaan",
             description: `Silakan tulis pertanyaanmu seputar jual beli & Robux di sini. Admin ${store} akan segera membalas.\n\nKalau sudah selesai, klik **🔒 Tutup Tiket**.`,
-            color: BRAND_COLOR,
+            color: brandColor(),
         }] as APIEmbed[],
         components: [row(button(`shop:closeask:${userId}`, "Tutup Tiket", ButtonStyle.Secondary, "🔒"))],
         allowed_mentions: { users: [userId], roles: adminRoleId ? [adminRoleId] : [] },
@@ -170,7 +175,7 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
                 title: `🟢 ${store} OPEN!`,
                 description: `✅ **${store} sekarang BUKA!**\nSilakan lakukan order Robux kamu sekarang!\n\n📌 Klik **🛒 Beli Robux** di panel toko, ya!`,
                 fields: [...orderField, updateField],
-                color: 0x2ecc71,
+                color: brandColor(),
                 footer: { text: `${store} • Trusted Robux Seller` },
                 timestamp: new Date().toISOString(),
             }] as APIEmbed[],
@@ -183,7 +188,7 @@ export function storeAnnouncement(config: ShopConfig, open: boolean, reason: str
             title: `🔴 ${store} CLOSE!`,
             description: `❌ **${store} sudah TUTUP!**\n${reason ? `> ${reason}\n` : ""}\nTerima kasih sudah berbelanja! 🙏\nPesanan yang sedang berjalan tetap akan diproses.`,
             fields: [...orderField, updateField],
-            color: 0xe74c3c,
+            color: brandColor(),
             footer: { text: `${store} • Trusted Robux Seller` },
             timestamp: new Date().toISOString(),
         }] as APIEmbed[],
@@ -204,7 +209,7 @@ export function historyCompletedEmbed(order: Order, buyer: UserLike, admin: User
             { name: "Nominal", value: `**${rupiah(order.price)}**`, inline: true },
             { name: "Total transaksi", value: rupiah(userTotalSpent), inline: true },
         ],
-        color: 0x2ecc71,
+        color: brandColor(),
         footer: { text: `${orderCode(order.id)}${admin ? ` • Diproses oleh ${admin.username}` : ""}` },
         timestamp: new Date().toISOString(),
     };
@@ -221,7 +226,7 @@ export function historyTicketClosedEmbed(order: Order, channelName: string, clos
             { name: "Pesanan", value: orderCode(order.id), inline: true },
             { name: "Ditutup oleh", value: `<@${closer.id}>`, inline: false },
         ],
-        color: 0xe74c3c,
+        color: brandColor(),
         timestamp: new Date().toISOString(),
     };
 }
@@ -245,7 +250,7 @@ export function vouchMessage(order: Order, buyer: UserLike, rating: number, revi
                 "",
                 `💬 **Ulasan :** *"${review.replace(/"/g, "'")}"*`,
             ].join("\n"),
-            color: 0xf1c40f,
+            color: brandColor(),
             footer: { text: `Terima kasih telah berbelanja di ${store}` },
             timestamp: new Date().toISOString(),
         }] as APIEmbed[],
@@ -261,7 +266,7 @@ export function leaderboardEmbed(store: string, entries: { user_id: string; spen
         title: "🏆 LEADERBOARD — TOP 10 BUYER",
         description: (lines.length ? lines.join("\n") : "_Belum ada transaksi selesai._") +
             `\n\n👑 **STATISTIK TOKO**\n👥 Customer : **${totals.customers.toLocaleString("id-ID")}**\n💰 Total Spending : **${rupiah(totals.spending)}**`,
-        color: 0xf1c40f,
+        color: brandColor(),
         footer: { text: `${store} • Otomatis terupdate setiap transaksi selesai` },
         timestamp: new Date().toISOString(),
     };
@@ -290,7 +295,7 @@ export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
         title: `🧮 Harga untuk ${robux(amount)}`,
         description: fields.length === 0 ? "Harga belum diatur oleh admin." : warnings.join("\n") || undefined,
         fields,
-        color: BRAND_COLOR,
+        color: brandColor(),
     };
 }
 
@@ -306,7 +311,7 @@ export function buyMethodPicker(config: ShopConfig) {
     const rows: Row[] = [];
     for (let i = 0; i < buttons.length; i += 5) rows.push(row(...buttons.slice(i, i + 5)));
     return {
-        embeds: [{ title: "🛒 Pilih Layanan", description: lines.join("\n"), color: BRAND_COLOR }] as APIEmbed[],
+        embeds: [{ title: "🛒 Pilih Layanan", description: lines.join("\n"), color: brandColor() }] as APIEmbed[],
         components: rows,
     };
 }
@@ -424,7 +429,7 @@ export function priceListMessage(config: ShopConfig, method: DeliveryMethod) {
         embeds: [{
             title: `${METHOD_EMOJI[method]} ${METHOD_LABEL[method]}`,
             description: lines.join("\n") + "\n\n-# Jumlah lain? Cek dengan `/harga`. Order lewat panel toko 🛒",
-            color: BRAND_COLOR,
+            color: brandColor(),
             footer: { text: `${config.store_name} • Harga dapat berubah sewaktu-waktu` },
             timestamp: new Date().toISOString(),
         }] as APIEmbed[],
@@ -565,7 +570,7 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
     if (order.handled_by) fields.push({ name: "Ditangani oleh", value: `<@${order.handled_by}>`, inline: true });
     return {
         title: title ?? `Pesanan ${orderCode(order.id)}`,
-        color: STATUS_COLOR[order.status],
+        color: brandColor(),
         fields,
         timestamp: new Date(order.updated_at * 1000).toISOString(),
     };
@@ -616,7 +621,7 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     return {
         title: "📋 Cara Menyelesaikan Pesanan",
         description: steps.join("\n") + `\n\n💳 **Pembayaran**\n${config.payment_info ?? "_Admin belum mengatur info pembayaran. Tunggu admin di tiket ini._"}`,
-        color: BRAND_COLOR,
+        color: brandColor(),
         footer: { text: "Jangan transfer ke nomor selain yang tertera di atas. Admin tidak pernah DM duluan." },
     };
 }
@@ -661,7 +666,7 @@ export function statsEmbed(stats: ShopStats, config: ShopConfig): APIEmbed {
         : "_Belum ada_";
     return {
         title: "📊 Statistik Toko",
-        color: BRAND_COLOR,
+        color: brandColor(),
         fields: [
             { name: "Pendapatan hari ini", value: rupiah(stats.revenueToday), inline: true },
             { name: "7 hari", value: rupiah(stats.revenue7d), inline: true },

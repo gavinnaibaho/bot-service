@@ -28,6 +28,7 @@ export type ShopConfig = {
     price_username: number;
     price_login: number;
     boost_enabled: boolean; // terima order joki/boosting (harga manual)
+    brand_color: number;    // warna semua pesan bot
     min_order: number;
     max_order: number;
     payment_info: string | null;
@@ -186,6 +187,13 @@ CREATE TABLE IF NOT EXISTS shop_pricelists (
             await tx`DELETE FROM shop_loyalty_roles`;
         },
     },
+    {
+        version: 8,
+        name: "warna toko",
+        up: async (tx) => {
+            await tx`ALTER TABLE shop_config ADD COLUMN brand_color INTEGER NOT NULL DEFAULT 16748487`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -219,6 +227,7 @@ function parseConfig(row: any): ShopConfig {
         price_group: Number(row.price_group ?? 0),
         price_username: Number(row.price_username ?? 0),
         price_login: Number(row.price_login ?? 0),
+        brand_color: row.brand_color === undefined || row.brand_color === null ? 0xff8fc7 : Number(row.brand_color),
         boost_enabled: row.boost_enabled === undefined || row.boost_enabled === null ? true : Boolean(Number(row.boost_enabled)),
         min_order: Number(row.min_order ?? 100),
         max_order: Number(row.max_order ?? 100000),
@@ -249,6 +258,7 @@ export function defaultConfig(guild_id: string): ShopConfig {
         price_username: 0,
         price_login: 0,
         boost_enabled: true,
+        brand_color: 0xff8fc7,
         min_order: 100,
         max_order: 100000,
         payment_info: null,
@@ -274,11 +284,11 @@ export async function getShopConfig(guild_id: string): Promise<ShopConfig | null
 export async function saveShopConfig(c: ShopConfig) {
     await db`
     INSERT INTO shop_config (guild_id, admin_role_id, ticket_category_id, log_channel_id, testimonial_channel_id,
-      price_gift, price_group, price_username, price_login, boost_enabled, min_order, max_order, payment_info, panel_channel_id, panel_message_id,
+      price_gift, price_group, price_username, price_login, boost_enabled, brand_color, min_order, max_order, payment_info, panel_channel_id, panel_message_id,
       is_open, close_reason, announce_channel_id, rename_channel,
       store_name, ping_role_id, history_channel_id, leaderboard_channel_id, leaderboard_message_id)
     VALUES (${c.guild_id}, ${c.admin_role_id}, ${c.ticket_category_id}, ${c.log_channel_id}, ${c.testimonial_channel_id},
-      ${c.price_gift}, ${c.price_group}, ${c.price_username}, ${c.price_login}, ${c.boost_enabled ? 1 : 0}, ${c.min_order}, ${c.max_order}, ${c.payment_info},
+      ${c.price_gift}, ${c.price_group}, ${c.price_username}, ${c.price_login}, ${c.boost_enabled ? 1 : 0}, ${c.brand_color}, ${c.min_order}, ${c.max_order}, ${c.payment_info},
       ${c.panel_channel_id}, ${c.panel_message_id},
       ${c.is_open ? 1 : 0}, ${c.close_reason}, ${c.announce_channel_id}, ${c.rename_channel ? 1 : 0},
       ${c.store_name}, ${c.ping_role_id}, ${c.history_channel_id}, ${c.leaderboard_channel_id}, ${c.leaderboard_message_id})
@@ -291,6 +301,7 @@ export async function saveShopConfig(c: ShopConfig) {
       price_username=excluded.price_username,
       price_login=excluded.price_login,
       boost_enabled=excluded.boost_enabled,
+      brand_color=excluded.brand_color,
       price_group=excluded.price_group,
       min_order=excluded.min_order,
       max_order=excluded.max_order,

@@ -27,6 +27,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             { type: ApplicationCommandOptionType.Channel, name: "kategori_tiket", description: "Kategori tempat channel tiket dibuat", channel_types: [ChannelType.GuildCategory] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_log", description: "Channel log transaksi (khusus admin)", channel_types: [ChannelType.GuildText] },
             { type: ApplicationCommandOptionType.Channel, name: "channel_testimoni", description: "Channel publik untuk vouch/testimoni", channel_types: [ChannelType.GuildText] },
+            { type: ApplicationCommandOptionType.String, name: "warna", description: "Warna semua pesan bot (kode hex), contoh #FF8FC7", min_length: 6, max_length: 7 },
             { type: ApplicationCommandOptionType.Boolean, name: "joki_aktif", description: "Terima order Joki / Boosting rank? Harga dihitung manual oleh admin" },
             { type: ApplicationCommandOptionType.Boolean, name: "gig_aktif", description: "Terima order Gift In Game (GIG)? Harga GIG dihitung manual oleh admin" },
             { type: ApplicationCommandOptionType.Integer, name: "minimal_order", description: "Minimal Robux per order", min_value: 1 },
@@ -95,9 +96,9 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
             },
             { type: ApplicationCommandOptionType.Role, name: "role", description: "Role yang di-ping jika ping = Role pilihan" },
             {
-                type: ApplicationCommandOptionType.String, name: "warna", description: "Warna garis embed (default: pink muda)",
+                type: ApplicationCommandOptionType.String, name: "warna", description: "Warna garis embed (default: warna toko)",
                 choices: [
-                    { name: "Pink muda (warna toko)", value: "ff8fc7" },
+                    { name: "Pink muda", value: "ff8fc7" },
                     { name: "Hijau", value: "2ecc71" },
                     { name: "Merah (penting/peringatan)", value: "e74c3c" },
                     { name: "Kuning", value: "f1c40f" },
