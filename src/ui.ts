@@ -45,38 +45,68 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 // ---------- Panel toko ----------
 
+/** Teks & tombol tiap layanan di panel Order Center. */
+const PANEL_ITEMS: Record<DeliveryMethod, { button: string; desc: string; style: ButtonStyle }> = {
+    gift: { button: "Order GIG Roblox", desc: "Beli item via GIG", style: ButtonStyle.Primary },
+    username: { button: "Robux Via Username", desc: "Transfer Robux langsung", style: ButtonStyle.Primary },
+    login: { button: "Robux Via Login", desc: "Top up via login akun", style: ButtonStyle.Primary },
+    group: { button: "Robux Group Payout", desc: "Kirim lewat payout grup Roblox", style: ButtonStyle.Primary },
+    boost: { button: "Joki / Boosting", desc: "Naikkan rank / level game", style: ButtonStyle.Primary },
+};
+/** Urutan tampil di panel. */
+const PANEL_ORDER: DeliveryMethod[] = ["gift", "username", "login", "group", "boost"];
+
 export function panelMessage(config: ShopConfig) {
-    const methods = enabledMethods(config);
-    const lines: string[] = methods.map((m) => isManual(m)
-        ? `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** ${m === "gift" ? "harga menyesuaikan item" : "harga sesuai game & target rank"}`
-        : `${METHOD_EMOJI[m]} **${METHOD_LABEL[m]}:** ${rupiah(methodPrice(config, m))} / 100 R$`);
-    if (lines.length === 0) lines.push("_Harga belum diatur oleh admin._");
+    const store = config.store_name;
+    const list = PANEL_ORDER.map((m) => `> ${METHOD_EMOJI[m]} **${PANEL_ITEMS[m].button}** — ${PANEL_ITEMS[m].desc}`);
+    list.push("> ❓ **Tanya** — Tanya seputar jual beli & Robux");
 
     const status = config.is_open
-        ? "🟢 **TOKO BUKA**"
-        : `🔴 **TOKO TUTUP**${config.close_reason ? `\n> ${config.close_reason}` : ""}`;
+        ? ""
+        : `🔴 **TOKO SEDANG TUTUP**${config.close_reason ? `\n> ${config.close_reason}` : ""}\n\n`;
 
     const embed: APIEmbed = {
-        title: "🛒 Toko Robux",
+        title: `🛒 ${store} — Order Center`,
         description:
-            `${status}\n\n` +
-            "Beli Robux & order joki dengan aman lewat tiket pribadi.\n\n" +
-            lines.join("\n") +
-            `\n\n📏 **Order:** ${robux(config.min_order)} – ${robux(config.max_order)}`,
-        color: config.is_open ? BRAND_COLOR : 0xe74c3c,
-        footer: { text: config.is_open ? "Klik 🛒 Order Sekarang untuk membuat pesanan" : "Toko sedang tutup, pantau pengumuman untuk jam buka" },
+            status +
+            `**Selamat datang di sistem order ${store}!**\n\n` +
+            "Klik salah satu tombol di bawah sesuai jenis order kamu untuk langsung membuat tiket.\n\n" +
+            "📋 **Jenis Order Tersedia:**\n" +
+            list.join("\n") +
+            "\n\n⚠️ Tombol yang tertulis **(Stok Habis)** berarti produk sedang tidak tersedia.",
+        color: config.is_open ? 0x5865f2 : 0xe74c3c,
+        footer: { text: `${store} • Trusted Robux Seller • Klik tombol untuk buat tiket` },
     };
-    const buy = button("shop:buy", config.is_open ? "Order Sekarang" : "Toko Tutup", config.is_open ? ButtonStyle.Success : ButtonStyle.Secondary, config.is_open ? "🛒" : "🔴");
-    if (!config.is_open) buy.disabled = true;
+
+    const buttons = PANEL_ORDER.map((m) => {
+        const available = isMethodEnabled(config, m);
+        const b = button(
+            `shop:buym:${m}`,
+            available ? PANEL_ITEMS[m].button : `${PANEL_ITEMS[m].button} (Stok Habis)`,
+            available ? PANEL_ITEMS[m].style : ButtonStyle.Secondary,
+            METHOD_EMOJI[m],
+        );
+        if (!available || !config.is_open) b.disabled = true;
+        return b;
+    });
+    buttons.push(button("shop:ask", "Tanya", ButtonStyle.Secondary, "❓"));
+
+    const rows: Row[] = [];
+    for (let k = 0; k < buttons.length; k += 3) rows.push(row(...buttons.slice(k, k + 3)));
+    return { embeds: [embed], components: rows, allowed_mentions: { parse: [] } };
+}
+
+/** Pesan pembuka tiket pertanyaan. */
+export function askTicketMessage(userId: string, adminRoleId: string | null, store: string) {
     return {
-        embeds: [embed],
-        components: [
-            row(
-                buy,
-                button("shop:price", "Cek Harga", ButtonStyle.Secondary, "🧮"),
-            ),
-        ],
-        allowed_mentions: { parse: [] },
+        content: `Halo <@${userId}>!${adminRoleId ? ` <@&${adminRoleId}>` : ""}`,
+        embeds: [{
+            title: "❓ Tiket Pertanyaan",
+            description: `Silakan tulis pertanyaanmu seputar jual beli & Robux di sini. Admin ${store} akan segera membalas.\n\nKalau sudah selesai, klik **🔒 Tutup Tiket**.`,
+            color: 0x5865f2,
+        }] as APIEmbed[],
+        components: [row(button(`shop:closeask:${userId}`, "Tutup Tiket", ButtonStyle.Secondary, "🔒"))],
+        allowed_mentions: { users: [userId], roles: adminRoleId ? [adminRoleId] : [] },
     };
 }
 

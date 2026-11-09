@@ -24,6 +24,7 @@ import {
     orderEmbed,
     orderModal,
     buyMethodPicker,
+    askTicketMessage,
     gigPriceModal,
     priceListMessage,
     announceModal,
@@ -461,6 +462,45 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (open) return say(`Kamu masih punya pesanan aktif ${orderCode(open.id)}${open.channel_id ? ` di <#${open.channel_id}>` : ""}. Selesaikan atau batalkan dulu.`);
                     await api.interactions.createModal(interaction.id, interaction.token, orderModal(config, method));
                     replied = true;
+                    return;
+                }
+
+                if (action === "ask") {
+                    if (!config) return say("Toko belum dibuka.");
+                    await defer();
+                    const view = (PermissionFlagsBits.ViewChannel | PermissionFlagsBits.SendMessages | PermissionFlagsBits.ReadMessageHistory | PermissionFlagsBits.AttachFiles | PermissionFlagsBits.EmbedLinks);
+                    const overwrites: any[] = [
+                        { id: guildId, type: OverwriteType.Role, deny: PermissionFlagsBits.ViewChannel.toString() },
+                        { id: userId, type: OverwriteType.Member, allow: view.toString() },
+                        { id: applicationId, type: OverwriteType.Member, allow: (view | PermissionFlagsBits.ManageChannels | PermissionFlagsBits.ManageMessages).toString() },
+                    ];
+                    if (config.admin_role_id) overwrites.push({ id: config.admin_role_id, type: OverwriteType.Role, allow: (view | PermissionFlagsBits.ManageMessages).toString() });
+                    let channel: { id: string } | null = null;
+                    try {
+                        channel = await api.guilds.createChannel(guildId, {
+                            name: `tanya-${sanitizeChannelName(member?.user.username ?? "member")}`,
+                            type: ChannelType.GuildText,
+                            parent_id: config.ticket_category_id ?? undefined,
+                            permission_overwrites: overwrites,
+                            topic: `Tiket pertanyaan · ${userId}`,
+                        }, { reason: "Tiket pertanyaan" });
+                    } catch (err) {
+                        console.log(`[shop] gagal membuat tiket tanya: ${err}`);
+                        return edit({ content: "❌ Gagal membuat tiket. Admin perlu memberi bot izin **Manage Channels**." });
+                    }
+                    await api.channels.createMessage(channel.id, askTicketMessage(userId, config.admin_role_id, config.store_name));
+                    await logToChannel(api, config, { title: "❓ Tiket pertanyaan dibuka", description: `<@${userId}> · <#${channel.id}>`, color: 0x5865f2 });
+                    return edit({ content: `✅ Tiket pertanyaan dibuat: <#${channel.id}>` });
+                }
+                if (action === "closeask") {
+                    const ownerId = idStr;
+                    if (!admin && userId !== ownerId) return say("❌ Kamu tidak bisa menutup tiket ini.");
+                    await say("🔒 Tiket ditutup dalam 5 detik…");
+                    const channelId = interaction.message.channel_id;
+                    if (config) await logToChannel(api, config, { title: "🔒 Tiket pertanyaan ditutup", description: `Oleh <@${userId}>`, color: 0x95a5a6 });
+                    setTimeout(() => {
+                        api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket tanya: ${err}`));
+                    }, 5000);
                     return;
                 }
 
