@@ -10,6 +10,7 @@ Bot ini **berdiri sendiri**. Untuk keamanan anti-spam, jalankan bot [Honeypot](h
 |---|---|
 | 🟢🔴 Buka/tutup | `/open` dan `/close [alasan]` secara manual. Pengumuman OPEN/CLOSE otomatis (ping role saat buka), tombol Beli nonaktif saat tutup, dan nama channel panel berganti 🟢/🔴 |
 | 🛒 Order Center | Panel bergaya profesional: status buka/tutup, daftar layanan (Robux & Layanan Lain), alur pemesanan, catatan keamanan, dan tombol langsung per layanan + **❓ Tanya**. Layanan nonaktif dicoret dan tombolnya bertanda **(Tidak Tersedia)**; saat toko tutup semua tombol order nonaktif. Otomatis diperbarui |
+| 🤝 Middleman | `/middleman-panel [biaya]` mengirim panel rekber. Member klik **Buka Tiket Middleman**, pilih pihak kedua, peran (penjual/pembeli), barang, dan harga deal. Bot membuat tiket `#mm-0001-nama` untuk kedua pihak + admin. Hanya admin yang bisa menandai **Selesai/Batal** dan menutup tiket; transaksi selesai tercatat di riwayat & log |
 | ❓ Tiket Tanya | Tombol Tanya membuat tiket pertanyaan privat (pembeli + admin) yang bisa ditutup kapan saja |
 | 🎫 Tiket order | Setiap pesanan membuat channel privat (pembeli + admin) |
 | 🚚 4 metode | 🔐 **Via Login**, 👤 **Via Send Username**, 👥 **Group Payout** (harga tetap per 100 R$) dan 🎁 **Gift In Game / GIG** (harga dihitung manual oleh admin) |
@@ -59,6 +60,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/status-channel atur\|hapus\|daftar` | Hubungkan channel (mis. voice di SERVER STATS) ke status toko atau layanan. Namanya otomatis berganti `🟢 ┃ …` / `🔴 ┃ …` saat /open, /close, /setup-harga, atau /toko-setup |
 | `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |
+| `/middleman-panel biaya` | Kirim panel tiket middleman ke channel saat ini (biaya opsional, contoh `5% (min. Rp5.000)`) |
 | `/toko-statistik` | Panel admin |
 | `/pesanan id` | Detail pesanan |
 | `/loyalitas atur\|hapus\|daftar` | Kelola role loyalitas |
@@ -88,6 +90,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
    - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
    - (opsional) `/loyalitas atur role:@Customer minimal_belanja:1` (dan misalnya `@Sultan minimal_belanja:1000000`)
    - Di channel toko: `/toko-panel`
+   - Di channel middleman: `/middleman-panel biaya:...`
 5. **Taruh role bot di atas** role-role loyalitas (Server Settings → Roles).
 
 ## Struktur kode

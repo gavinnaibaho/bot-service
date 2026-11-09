@@ -46,6 +46,13 @@ import {
     type UserLike,
     statusChannelName,
     serviceStatusChannelName,
+    middlemanPanelMessage,
+    middlemanModal,
+    middlemanEmbed,
+    middlemanTicketMessage,
+    middlemanButtons,
+    middlemanCode,
+    historyMiddlemanEmbed,
 } from "./ui";
 
 type Api = API;
@@ -497,6 +504,24 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: `✅ Panel toko terkirim.${oldPanel ? " Panel lama sudah dihapus otomatis." : ""} Panel ini akan otomatis diperbarui saat harga atau status toko berubah.` });
                     }
 
+                    case "middleman-panel": {
+                        await defer();
+                        const c = config ?? shopDb.defaultConfig(guildId);
+                        const mc = await shopDb.getMiddlemanConfig(guildId);
+                        const feeOpt = getOption(opts, "biaya")?.value;
+                        if (feeOpt !== undefined) mc.fee = String(feeOpt).trim() || null;
+                        const msg = await api.channels.createMessage(interaction.channel!.id, middlemanPanelMessage(c.store_name, mc.fee)).catch((err: unknown) => {
+                            console.log(`[shop] gagal kirim panel middleman: ${err}`);
+                            return null;
+                        });
+                        if (!msg) return edit({ content: "❌ Gagal mengirim panel. Pastikan bot bisa melihat & mengirim pesan di channel ini." });
+                        const oldPanel = mc.panel_channel_id && mc.panel_message_id && mc.panel_message_id !== msg.id
+                            ? await api.channels.deleteMessage(mc.panel_channel_id, mc.panel_message_id).then(() => true).catch(() => false)
+                            : false;
+                        await shopDb.saveMiddlemanConfig({ ...mc, panel_channel_id: msg.channel_id, panel_message_id: msg.id });
+                        return edit({ content: `✅ Panel middleman terkirim.${oldPanel ? " Panel lama sudah dihapus otomatis." : ""}${mc.fee ? "" : "\n-# Tip: tampilkan biaya jasa dengan `/middleman-panel biaya:5% (min. Rp5.000)`."}` });
+                    }
+
                     case "toko-statistik": {
                         if (!config) return say("❌ Jalankan `/toko-setup` dulu.");
                         const stats = await shopDb.getShopStats(guildId, startOfTodayWIB());
@@ -630,6 +655,54 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     setTimeout(() => {
                         api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket tanya: ${err}`));
                     }, 5000);
+                    return;
+                }
+
+                // --- middleman ---
+                if (action === "mm") {
+                    if (!config) return say("Middleman belum bisa dipakai. Admin perlu menjalankan `/toko-setup` dulu.");
+                    const active = await shopDb.getActiveMiddlemanForUser(guildId, userId);
+                    if (active) return say(`Kamu masih punya tiket middleman aktif ${middlemanCode(active.id)} di <#${active.channel_id}>.`);
+                    await api.interactions.createModal(interaction.id, interaction.token, middlemanModal());
+                    replied = true;
+                    return;
+                }
+                if (action === "mmdone" || action === "mmcancel" || action === "mmclose") {
+                    if (!config) return say("❌ Tiket tidak valid.");
+                    if (!admin) return say("❌ Hanya admin (middleman) yang bisa memakai tombol ini.");
+                    const mm = await shopDb.getMiddleman(guildId, orderId);
+                    if (!mm) return say("❌ Tiket middleman tidak ditemukan.");
+                    const mc = await shopDb.getMiddlemanConfig(guildId);
+                    if (action === "mmclose") {
+                        if (mm.status === "aktif") return say("Selesaikan atau batalkan transaksi dulu sebelum menutup tiket.");
+                        if (!mm.channel_id) return say("Tiket sudah ditutup.");
+                        await say("🔒 Tiket ditutup dalam 5 detik…");
+                        const channelId = mm.channel_id;
+                        await shopDb.setMiddlemanChannel(mm.id, null);
+                        const ch: any = await api.channels.get(channelId).catch(() => null);
+                        await logToChannel(api, config, { title: `🔒 Tiket middleman ${middlemanCode(mm.id)} ditutup`, description: `\`#${ch?.name ?? "middleman"}\` · oleh <@${userId}>`, color: brandColor() });
+                        setTimeout(() => {
+                            api.channels.delete(channelId).catch((err: unknown) => console.log(`[shop] gagal hapus tiket middleman: ${err}`));
+                        }, 5000);
+                        return;
+                    }
+                    const status = action === "mmdone" ? "selesai" : "dibatalkan";
+                    const updated = await shopDb.finishMiddleman(guildId, mm.id, status, userId);
+                    if (!updated) return say("Status tiket middleman sudah berubah.");
+                    await api.channels.editMessage(interaction.message.channel_id, interaction.message.id, { components: [] }).catch(() => null);
+                    const title = status === "selesai" ? `🎉 Middleman Selesai — ${middlemanCode(mm.id)}` : `❌ Middleman Dibatalkan — ${middlemanCode(mm.id)}`;
+                    const note = status === "selesai"
+                        ? `<@${updated.opener_id}> <@${updated.partner_id}> transaksi selesai! Dana sudah diteruskan ke penjual. Terima kasih sudah memakai jasa middleman ${config.store_name} 🙏`
+                        : `<@${updated.opener_id}> <@${updated.partner_id}> transaksi dibatalkan oleh <@${userId}>. Jika dana sudah ditransfer, admin akan mengembalikannya ke pembeli.`;
+                    await say(status === "selesai" ? "✅ Transaksi middleman selesai." : "Transaksi middleman dibatalkan.");
+                    await api.channels.createMessage(interaction.message.channel_id, {
+                        content: note,
+                        embeds: [middlemanEmbed(updated, title, mc.fee)],
+                        components: middlemanButtons(updated),
+                        allowed_mentions: { users: [updated.opener_id, updated.partner_id] },
+                    }).catch((err: unknown) => console.log(`[shop] gagal kirim status middleman: ${err}`));
+                    await logToChannel(api, config, middlemanEmbed(updated, title, mc.fee));
+                    if (status === "selesai" && member?.user) await postToHistory(api, config, historyMiddlemanEmbed(updated, member.user));
                     return;
                 }
 
@@ -791,6 +864,55 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     c.payment_info = trim((values.payment_info ?? "").trim(), 1500) || null;
                     await shopDb.saveShopConfig(c);
                     return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: brandColor() }] });
+                }
+
+                if (kind === "mm") {
+                    if (!config) return say("Middleman belum bisa dipakai.");
+                    const partnerId = values.partner ?? "";
+                    const side = values.side === "pembeli" ? "pembeli" : "penjual";
+                    const item = trim((values.item ?? "").trim(), 150);
+                    const deal = trim((values.deal ?? "").trim(), 60);
+                    const note = trim((values.note ?? "").trim(), 300) || null;
+                    const resolved: any = (interaction.data as any).resolved ?? {};
+                    if (!/^\d{15,25}$/.test(partnerId)) return say("❌ Pilih pihak kedua dulu.");
+                    if (partnerId === userId) return say("❌ Pihak kedua tidak boleh dirimu sendiri.");
+                    if (resolved.users?.[partnerId]?.bot) return say("❌ Pihak kedua tidak boleh bot.");
+                    if (resolved.members && !resolved.members[partnerId]) return say("❌ Pihak kedua harus member server ini.");
+                    if (item.length < 2 || !deal) return say("❌ Lengkapi barang dan harga deal.");
+                    const active = await shopDb.getActiveMiddlemanForUser(guildId, userId);
+                    if (active) return say(`Kamu masih punya tiket middleman aktif ${middlemanCode(active.id)} di <#${active.channel_id}>.`);
+
+                    await defer();
+                    const mm = await shopDb.createMiddleman({ guild_id: guildId, opener_id: userId, partner_id: partnerId, opener_side: side, item, deal, note });
+                    const view = (PermissionFlagsBits.ViewChannel | PermissionFlagsBits.SendMessages | PermissionFlagsBits.ReadMessageHistory | PermissionFlagsBits.AttachFiles | PermissionFlagsBits.EmbedLinks);
+                    const overwrites: any[] = [
+                        { id: guildId, type: OverwriteType.Role, deny: PermissionFlagsBits.ViewChannel.toString() },
+                        { id: userId, type: OverwriteType.Member, allow: view.toString() },
+                        { id: partnerId, type: OverwriteType.Member, allow: view.toString() },
+                        { id: applicationId, type: OverwriteType.Member, allow: (view | PermissionFlagsBits.ManageChannels | PermissionFlagsBits.ManageMessages).toString() },
+                    ];
+                    if (config.admin_role_id) overwrites.push({ id: config.admin_role_id, type: OverwriteType.Role, allow: (view | PermissionFlagsBits.ManageMessages).toString() });
+                    const name = `mm-${String(mm.id).padStart(4, "0")}-${sanitizeChannelName(member?.user.username ?? "member")}`;
+                    let channel: { id: string } | null = null;
+                    try {
+                        channel = await api.guilds.createChannel(guildId, {
+                            name,
+                            type: ChannelType.GuildText,
+                            parent_id: config.ticket_category_id ?? undefined,
+                            permission_overwrites: overwrites,
+                            topic: `Middleman ${middlemanCode(mm.id)} · ${item}`.slice(0, 1024),
+                        }, { reason: `Tiket middleman ${middlemanCode(mm.id)}` });
+                    } catch (err) {
+                        console.log(`[shop] gagal membuat tiket middleman: ${err}`);
+                        await shopDb.finishMiddleman(guildId, mm.id, "dibatalkan", applicationId);
+                        return edit({ content: "❌ Gagal membuat tiket. Admin perlu memberi bot izin **Manage Channels** (dan akses ke kategori tiket)." });
+                    }
+                    await shopDb.setMiddlemanChannel(mm.id, channel.id);
+                    const mc = await shopDb.getMiddlemanConfig(guildId);
+                    const withChannel = { ...mm, channel_id: channel.id };
+                    await api.channels.createMessage(channel.id, middlemanTicketMessage(withChannel, config.admin_role_id, mc.fee, config.payment_info));
+                    await logToChannel(api, config, { ...middlemanEmbed(withChannel, `🆕 Middleman baru ${middlemanCode(mm.id)}`, mc.fee), description: `Tiket: <#${channel.id}> (\`#${name}\`)` });
+                    return edit({ content: `✅ Tiket middleman ${middlemanCode(mm.id)} dibuat: <#${channel.id}>` });
                 }
 
                 if (kind === "order") {

@@ -207,6 +207,38 @@ CREATE TABLE IF NOT EXISTS shop_status_channels (
 )`;
         },
     },
+    {
+        version: 10,
+        name: "tiket middleman",
+        up: async (tx) => {
+            const auto = db.options.adapter === "sqlite" ? db`AUTOINCREMENT`
+                : db.options.adapter === "postgres" ? db`GENERATED ALWAYS AS IDENTITY`
+                    : db`AUTO_INCREMENT`;
+            await tx`
+CREATE TABLE IF NOT EXISTS shop_middleman (
+  id INTEGER PRIMARY KEY ${auto},
+  guild_id VARCHAR(20) NOT NULL,
+  opener_id VARCHAR(20) NOT NULL,
+  partner_id VARCHAR(20) NOT NULL,
+  opener_side VARCHAR(8) NOT NULL,
+  item TEXT NOT NULL,
+  deal TEXT NOT NULL,
+  note TEXT,
+  status VARCHAR(16) NOT NULL DEFAULT 'aktif',
+  channel_id VARCHAR(20),
+  handled_by VARCHAR(20),
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
+)`;
+            await tx`
+CREATE TABLE IF NOT EXISTS shop_middleman_config (
+  guild_id VARCHAR(20) PRIMARY KEY,
+  fee TEXT,
+  panel_channel_id VARCHAR(20),
+  panel_message_id VARCHAR(20)
+)`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -632,4 +664,105 @@ export async function deleteLoyaltyRole(guild_id: string, role_id: string): Prom
     if (!row) return false;
     await db`DELETE FROM shop_loyalty_roles WHERE guild_id = ${guild_id} AND role_id = ${role_id}`;
     return true;
+}
+
+// ---------- Middleman (rekber) ----------
+
+export type MiddlemanStatus = "aktif" | "selesai" | "dibatalkan";
+export type MiddlemanSide = "penjual" | "pembeli";
+
+export type Middleman = {
+    id: number;
+    guild_id: string;
+    opener_id: string;
+    partner_id: string;
+    opener_side: MiddlemanSide;
+    item: string;
+    deal: string;
+    note: string | null;
+    status: MiddlemanStatus;
+    channel_id: string | null;
+    handled_by: string | null;
+    created_at: number;
+    updated_at: number;
+};
+
+export type MiddlemanConfig = { guild_id: string; fee: string | null; panel_channel_id: string | null; panel_message_id: string | null };
+
+function parseMiddleman(row: any): Middleman {
+    return {
+        id: Number(row.id),
+        guild_id: String(row.guild_id),
+        opener_id: String(row.opener_id),
+        partner_id: String(row.partner_id),
+        opener_side: row.opener_side === "pembeli" ? "pembeli" : "penjual",
+        item: String(row.item),
+        deal: String(row.deal),
+        note: row.note ?? null,
+        status: row.status as MiddlemanStatus,
+        channel_id: row.channel_id ?? null,
+        handled_by: row.handled_by ?? null,
+        created_at: Number(row.created_at),
+        updated_at: Number(row.updated_at),
+    };
+}
+
+/** Penjual & pembeli dari sebuah tiket middleman. */
+export function middlemanParties(m: Middleman): { seller: string; buyer: string } {
+    return m.opener_side === "penjual"
+        ? { seller: m.opener_id, buyer: m.partner_id }
+        : { seller: m.partner_id, buyer: m.opener_id };
+}
+
+export async function createMiddleman(m: Pick<Middleman, "guild_id" | "opener_id" | "partner_id" | "opener_side" | "item" | "deal" | "note">): Promise<Middleman> {
+    const t = now();
+    const [row] = await db`
+    INSERT INTO shop_middleman (guild_id, opener_id, partner_id, opener_side, item, deal, note, status, created_at, updated_at)
+    VALUES (${m.guild_id}, ${m.opener_id}, ${m.partner_id}, ${m.opener_side}, ${m.item}, ${m.deal}, ${m.note}, 'aktif', ${t}, ${t})
+    RETURNING *`;
+    return parseMiddleman(row);
+}
+
+export async function getMiddleman(guild_id: string, id: number): Promise<Middleman | null> {
+    const [row] = await db`SELECT * FROM shop_middleman WHERE guild_id = ${guild_id} AND id = ${id}`;
+    return row ? parseMiddleman(row) : null;
+}
+
+/** Tiket middleman aktif yang dibuka oleh member ini. */
+export async function getActiveMiddlemanForUser(guild_id: string, user_id: string): Promise<Middleman | null> {
+    const [row] = await db`
+    SELECT * FROM shop_middleman
+    WHERE guild_id = ${guild_id} AND opener_id = ${user_id} AND status = 'aktif' AND channel_id IS NOT NULL
+    ORDER BY id DESC LIMIT 1`;
+    return row ? parseMiddleman(row) : null;
+}
+
+export async function setMiddlemanChannel(id: number, channel_id: string | null) {
+    await db`UPDATE shop_middleman SET channel_id = ${channel_id}, updated_at = ${now()} WHERE id = ${id}`;
+}
+
+/** Ubah status dari 'aktif' ke selesai/dibatalkan. Null kalau statusnya sudah berubah. */
+export async function finishMiddleman(guild_id: string, id: number, status: "selesai" | "dibatalkan", by: string): Promise<Middleman | null> {
+    const [row] = await db`
+    UPDATE shop_middleman SET status = ${status}, handled_by = ${by}, updated_at = ${now()}
+    WHERE guild_id = ${guild_id} AND id = ${id} AND status = 'aktif'
+    RETURNING *`;
+    return row ? parseMiddleman(row) : null;
+}
+
+export async function getMiddlemanConfig(guild_id: string): Promise<MiddlemanConfig> {
+    const [row] = await db`SELECT * FROM shop_middleman_config WHERE guild_id = ${guild_id}`;
+    return {
+        guild_id,
+        fee: row?.fee ?? null,
+        panel_channel_id: row?.panel_channel_id ?? null,
+        panel_message_id: row?.panel_message_id ?? null,
+    };
+}
+
+export async function saveMiddlemanConfig(c: MiddlemanConfig) {
+    await db`
+    INSERT INTO shop_middleman_config (guild_id, fee, panel_channel_id, panel_message_id)
+    VALUES (${c.guild_id}, ${c.fee}, ${c.panel_channel_id}, ${c.panel_message_id})
+    ON CONFLICT(guild_id) DO UPDATE SET fee = excluded.fee, panel_channel_id = excluded.panel_channel_id, panel_message_id = excluded.panel_message_id`;
 }

@@ -128,4 +128,17 @@ assert(removed > 0 && (await s.getGlobalTotals(G)).orders === 0, "reset hapus se
 const fresh = await s.createOrder({ guild_id: G, user_id: U, robux: 100, price: 15500, stock_cost: 100, method: "username", roblox_username: "builderman", note: null });
 assert(fresh.id === 1, "nomor pesanan kembali ke #0001");
 assert((await s.getShopConfig(G))!.store_name === "Aminari Store", "pengaturan toko tidak ikut terhapus");
+
+// middleman (rekber)
+const mm = await s.createMiddleman({ guild_id: G, opener_id: U, partner_id: "777", opener_side: "pembeli", item: "Akun Blox Fruits", deal: "Rp150.000", note: null });
+assert(mm.id === 1 && mm.status === "aktif", "buat tiket middleman #MM-0001");
+const pr = s.middlemanParties(mm);
+assert(pr.buyer === U && pr.seller === "777", "penjual/pembeli sesuai pilihan");
+assert((await s.getActiveMiddlemanForUser(G, U)) === null, "tanpa channel belum dihitung aktif");
+await s.setMiddlemanChannel(mm.id, "c-mm");
+assert((await s.getActiveMiddlemanForUser(G, U))?.id === mm.id, "satu tiket middleman aktif per member");
+assert((await s.finishMiddleman(G, mm.id, "selesai", "555"))?.status === "selesai", "middleman selesai");
+assert((await s.finishMiddleman(G, mm.id, "dibatalkan", "555")) === null, "status final tidak bisa diubah lagi");
+await s.saveMiddlemanConfig({ guild_id: G, fee: "5%", panel_channel_id: "p", panel_message_id: "m" });
+assert((await s.getMiddlemanConfig(G)).fee === "5%", "biaya middleman tersimpan");
 });

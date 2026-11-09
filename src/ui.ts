@@ -7,7 +7,8 @@ import {
     type APIEmbed,
     type APIModalInteractionResponseCallbackData,
 } from "discord-api-types/v10";
-import type { DeliveryMethod, Order, ShopConfig, ShopStats } from "./db";
+import type { DeliveryMethod, Middleman, Order, ShopConfig, ShopStats } from "./db";
+import { middlemanParties } from "./db";
 import {
     METHODS,
     METHOD_EMOJI,
@@ -701,4 +702,152 @@ export function statsEmbed(stats: ShopStats, config: ShopConfig): APIEmbed {
 
 export function methodFromValue(v: string | undefined): DeliveryMethod | null {
     return (METHODS as string[]).includes(v ?? "") ? (v as DeliveryMethod) : null;
+}
+
+// ---------- Middleman (rekber) ----------
+
+export const middlemanCode = (id: number) => "#MM-" + String(id).padStart(4, "0");
+
+const MM_FLOW =
+    "`1` Klik tombol di bawah, pilih pihak kedua dan isi formulir\n" +
+    "`2` Pembeli transfer dana ke admin (middleman)\n" +
+    "`3` Admin konfirmasi dana sudah diterima\n" +
+    "`4` Penjual menyerahkan barang / akun ke pembeli\n" +
+    "`5` Pembeli konfirmasi barang sudah diterima\n" +
+    "`6` Admin meneruskan dana ke penjual";
+
+/** Panel tiket middleman (Components V2, gaya sama dengan panel toko). */
+export function middlemanPanelMessage(store: string, fee: string | null) {
+    const container = {
+        type: 17,
+        accent_color: brandColor(),
+        components: [
+            text(`# 🤝 Middleman ${store}\n**Jasa Rekber / Perantara Transaksi Aman**`),
+            divider(),
+            text(`Mau jual beli akun, item, atau Robux dengan member lain? Pakai jasa middleman supaya transaksi lebih aman. Dana ditahan admin ${store} sampai barang diterima pembeli, baru diteruskan ke penjual.`),
+            text(`**🧾 Alur Middleman**\n${MM_FLOW}`),
+            ...(fee ? [text(`**💸 Biaya Middleman**\n> ${fee}`)] : []),
+            text("⚠️ Transaksi hanya dianggap sah di dalam tiket. Admin tidak pernah meminta pembayaran atau data akun melalui DM."),
+            divider(),
+            row(button("shop:mm", "Buka Tiket Middleman", ButtonStyle.Primary, "🤝")),
+            text(`-# ${store} • Middleman diproses melalui tiket`),
+        ],
+    };
+    return { components: [container], flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as [] } } as any;
+}
+
+/** Form buka tiket middleman. */
+export function middlemanModal(): APIModalInteractionResponseCallbackData {
+    return {
+        title: "Buka Tiket Middleman",
+        custom_id: "shop_modal:mm",
+        components: [
+            {
+                type: ComponentType.Label,
+                label: "Pihak Kedua",
+                description: "Member yang bertransaksi denganmu",
+                component: { type: ComponentType.UserSelect, custom_id: "partner", min_values: 1, max_values: 1, required: true },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Kamu Sebagai",
+                component: {
+                    type: ComponentType.StringSelect,
+                    custom_id: "side",
+                    required: true,
+                    options: [
+                        { label: "Penjual", value: "penjual", emoji: { name: "📦" }, description: "Kamu yang menyerahkan barang / akun" },
+                        { label: "Pembeli", value: "pembeli", emoji: { name: "💳" }, description: "Kamu yang membayar" },
+                    ],
+                },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Barang / Akun yang Ditransaksikan",
+                component: { type: ComponentType.TextInput, custom_id: "item", style: TextInputStyle.Short, placeholder: "contoh: Akun Blox Fruits lvl max / 1.000 Robux / item Dragon", min_length: 2, max_length: 150, required: true },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Harga Deal",
+                component: { type: ComponentType.TextInput, custom_id: "deal", style: TextInputStyle.Short, placeholder: "contoh: Rp150.000", min_length: 1, max_length: 60, required: true },
+            },
+            {
+                type: ComponentType.Label,
+                label: "Catatan (opsional)",
+                component: { type: ComponentType.TextInput, custom_id: "note", style: TextInputStyle.Paragraph, placeholder: "detail kesepakatan, siapa yang menanggung biaya middleman, dll.", max_length: 300, required: false },
+            },
+        ],
+    } as any;
+}
+
+export function middlemanEmbed(m: Middleman, title?: string, fee?: string | null): APIEmbed {
+    const { seller, buyer } = middlemanParties(m);
+    const status = m.status === "aktif" ? "⏳ Berjalan" : m.status === "selesai" ? "✅ Selesai" : "❌ Dibatalkan";
+    return {
+        title: title ?? `🤝 Tiket Middleman ${middlemanCode(m.id)}`,
+        color: brandColor(),
+        fields: [
+            { name: "📦 Penjual", value: `<@${seller}>`, inline: true },
+            { name: "💳 Pembeli", value: `<@${buyer}>`, inline: true },
+            { name: "Status", value: status, inline: true },
+            { name: "Barang / Akun", value: trimText(m.item, 1024), inline: false },
+            { name: "Harga Deal", value: trimText(m.deal, 1024), inline: true },
+            ...(fee ? [{ name: "Biaya Middleman", value: trimText(fee, 1024), inline: true }] : []),
+            ...(m.note ? [{ name: "Catatan", value: trimText(m.note, 1024), inline: false }] : []),
+        ],
+        timestamp: new Date(m.created_at * 1000).toISOString(),
+    };
+}
+
+/** Pesan pembuka tiket middleman. */
+export function middlemanTicketMessage(m: Middleman, adminRoleId: string | null, fee: string | null, paymentInfo: string | null) {
+    const { buyer } = middlemanParties(m);
+    const embeds: APIEmbed[] = [
+        middlemanEmbed(m, undefined, fee),
+        {
+            title: "🧾 Alur Middleman",
+            color: brandColor(),
+            description: `${MM_FLOW.split("\n").slice(1).join("\n")}\n\n⚠️ Penjual **jangan** menyerahkan barang sebelum admin mengonfirmasi dana diterima. Semua bukti dikirim di tiket ini.`,
+        },
+    ];
+    if (paymentInfo) embeds.push({ title: "💳 Pembayaran ke Middleman", color: brandColor(), description: `<@${buyer}> transfer ke rekening di bawah, lalu kirim bukti di tiket ini.\n\n${paymentInfo}` });
+    return {
+        content: `Halo <@${m.opener_id}> & <@${m.partner_id}>!${adminRoleId ? ` <@&${adminRoleId}>` : ""}`,
+        embeds,
+        components: middlemanButtons(m),
+        allowed_mentions: { users: [m.opener_id, m.partner_id], roles: adminRoleId ? [adminRoleId] : [] },
+    };
+}
+
+export function middlemanButtons(m: Middleman): Row[] {
+    if (m.status === "aktif") {
+        return [row(
+            button(`shop:mmdone:${m.id}`, "Transaksi Selesai (Admin)", ButtonStyle.Success, "✅"),
+            button(`shop:mmcancel:${m.id}`, "Batalkan (Admin)", ButtonStyle.Danger, "✖️"),
+        )];
+    }
+    return [row(button(`shop:mmclose:${m.id}`, "Tutup Tiket (Admin)", ButtonStyle.Secondary, "🔒"))];
+}
+
+/** Riwayat publik: middleman selesai. */
+export function historyMiddlemanEmbed(m: Middleman, admin: UserLike | null): APIEmbed {
+    const { seller, buyer } = middlemanParties(m);
+    return {
+        title: "Middleman selesai",
+        description: "🤝 **Transaksi rekber berhasil**",
+        color: brandColor(),
+        fields: [
+            { name: "Penjual", value: `<@${seller}>`, inline: true },
+            { name: "Pembeli", value: `<@${buyer}>`, inline: true },
+            { name: "Barang / Akun", value: trimText(m.item, 1024), inline: false },
+            { name: "Harga Deal", value: trimText(m.deal, 1024), inline: true },
+            ...(admin ? [{ name: "Middleman", value: `<@${admin.id}>`, inline: true }] : []),
+        ],
+        footer: { text: middlemanCode(m.id) },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function trimText(s: string, max: number) {
+    return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }

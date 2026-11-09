@@ -187,6 +187,22 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ...guildOnly,
     },
     {
+        name: "middleman-panel",
+        description: "Kirim panel tiket middleman (rekber) ke channel ini",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            {
+                name: "biaya",
+                description: "Biaya jasa middleman yang ditampilkan, contoh: 5% (min. Rp5.000). Kosongkan = tetap seperti sebelumnya",
+                type: ApplicationCommandOptionType.String,
+                max_length: 200,
+                required: false,
+            },
+        ],
+    },
+    {
         name: "toko-statistik",
         description: "Panel admin: statistik penjualan & order terbaru",
         type: ApplicationCommandType.ChatInput,
