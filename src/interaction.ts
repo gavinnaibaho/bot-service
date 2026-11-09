@@ -393,7 +393,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
                     }
 
-                    case "toko-reset": {
+                    case "toko-reset-tiket": {
                         if (!admin) return say("❌ Hanya admin.");
                         if (String(getOption(opts, "konfirmasi")?.value ?? "") !== "RESET") return say("Dibatalkan. Ketik `RESET` (huruf besar) di opsi **konfirmasi** untuk mereset data pesanan.");
                         const stats = await shopDb.getShopStats(guildId, startOfTodayWIB());
