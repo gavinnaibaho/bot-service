@@ -46,51 +46,70 @@ const row = (...components: APIButtonComponent[]): Row => ({ type: ComponentType
 
 // ---------- Panel toko ----------
 
-/** Teks & tombol tiap layanan di panel Order Center. */
-const PANEL_ITEMS: Record<DeliveryMethod, { button: string; desc: string; style: ButtonStyle }> = {
-    gift: { button: "Order GIG Roblox", desc: "Beli item via GIG", style: ButtonStyle.Primary },
-    username: { button: "Robux Via Username", desc: "Transfer Robux langsung", style: ButtonStyle.Primary },
-    login: { button: "Robux Via Login", desc: "Top up via login akun", style: ButtonStyle.Primary },
-    group: { button: "Robux Group Payout", desc: "Kirim lewat payout grup Roblox", style: ButtonStyle.Primary },
-    boost: { button: "Joki / Boosting", desc: "Naikkan rank / level game", style: ButtonStyle.Primary },
+/** Label tombol tiap layanan di panel. */
+const PANEL_BUTTON: Record<DeliveryMethod, string> = {
+    username: "Robux · Via Username",
+    login: "Robux · Via Login",
+    group: "Robux · Group Payout",
+    gift: "Gift In Game",
+    boost: "Joki / Boosting",
 };
 /** Urutan tampil di panel. */
-const PANEL_ORDER: DeliveryMethod[] = ["gift", "username", "login", "group", "boost"];
+const PANEL_ORDER: DeliveryMethod[] = ["username", "login", "group", "gift", "boost"];
 
 export function panelMessage(config: ShopConfig) {
     const store = config.store_name;
-    const list = PANEL_ORDER.map((m) => `> ${METHOD_EMOJI[m]} **${PANEL_ITEMS[m].button}** — ${PANEL_ITEMS[m].desc}`);
-    list.push("> ❓ **Tanya** — Tanya seputar jual beli & Robux");
+    const mark = (m: DeliveryMethod, text: string) => isMethodEnabled(config, m) ? text : `~~${text}~~`;
 
     const status = config.is_open
-        ? ""
-        : `🔴 **TOKO SEDANG TUTUP**${config.close_reason ? `\n> ${config.close_reason}` : ""}\n\n`;
+        ? "🟢 **Status:** Buka — pesanan diproses hari ini"
+        : `🔴 **Status:** Tutup${config.close_reason ? ` — ${config.close_reason}` : ""}`;
 
     const embed: APIEmbed = {
         description:
-            `# 🛒 ${store} — Order Center\n` +
-            status +
-            `**Selamat datang di sistem order ${store}!**\n\n` +
-            "Klik salah satu tombol di bawah sesuai jenis order kamu untuk langsung membuat tiket.\n\n" +
-            "📋 **Jenis Order Tersedia:**\n" +
-            list.join("\n") +
-            "\n\n⚠️ Tombol yang tertulis **(Stok Habis)** berarti produk sedang tidak tersedia.",
+            `# ${store}\n` +
+            "**Layanan Top Up Robux & Jasa Game**\n\n" +
+            `${status}\n\n` +
+            "Silakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.",
+        fields: [
+            {
+                name: "Robux",
+                value: [mark("username", "Via Username"), mark("login", "Via Login"), mark("group", "Group Payout")].map((t) => `• ${t}`).join("\n"),
+                inline: true,
+            },
+            {
+                name: "Layanan Lain",
+                value: [mark("gift", "Gift In Game (GIG)"), mark("boost", "Joki / Boosting"), "Hubungi Admin"].map((t) => `• ${t}`).join("\n"),
+                inline: true,
+            },
+            {
+                name: "Alur Pemesanan",
+                value: "`1` Pilih layanan dan isi formulir\n`2` Lakukan pembayaran sesuai instruksi di tiket\n`3` Kirim bukti transfer di tiket\n`4` Pesanan diproses oleh admin",
+                inline: false,
+            },
+            {
+                name: "Catatan",
+                value: "Layanan yang dicoret sedang **tidak tersedia**.\nAdmin tidak pernah meminta pembayaran atau data akun melalui DM.",
+                inline: false,
+            },
+        ],
         color: config.is_open ? BRAND_COLOR : 0xe74c3c,
-        footer: { text: `${store} • Trusted Robux Seller • Klik tombol untuk buat tiket` },
+        footer: { text: `${store} • Pesanan diproses melalui tiket` },
+        timestamp: new Date().toISOString(),
     };
 
     const buttons = PANEL_ORDER.map((m) => {
         const available = isMethodEnabled(config, m);
         const b = button(
             `shop:buym:${m}`,
-            available ? PANEL_ITEMS[m].button : `${PANEL_ITEMS[m].button} (Stok Habis)`,
-            available ? PANEL_ITEMS[m].style : ButtonStyle.Secondary,
+            available ? PANEL_BUTTON[m] : `${PANEL_BUTTON[m]} (Tidak Tersedia)`,
+            available ? ButtonStyle.Primary : ButtonStyle.Secondary,
             METHOD_EMOJI[m],
         );
         if (!available || !config.is_open) b.disabled = true;
         return b;
     });
-    buttons.push(button("shop:ask", "Tanya", ButtonStyle.Secondary, "❓"));
+    buttons.push(button("shop:ask", "Hubungi Admin", ButtonStyle.Secondary, "💬"));
 
     const rows: Row[] = [];
     for (let k = 0; k < buttons.length; k += 3) rows.push(row(...buttons.slice(k, k + 3)));
@@ -102,7 +121,7 @@ export function askTicketMessage(userId: string, adminRoleId: string | null, sto
     return {
         content: `Halo <@${userId}>!${adminRoleId ? ` <@&${adminRoleId}>` : ""}`,
         embeds: [{
-            title: "❓ Tiket Pertanyaan",
+            title: "💬 Hubungi Admin",
             description: `Silakan tulis pertanyaanmu seputar jual beli & Robux di sini. Admin ${store} akan segera membalas.\n\nKalau sudah selesai, klik **🔒 Tutup Tiket**.`,
             color: BRAND_COLOR,
         }] as APIEmbed[],
