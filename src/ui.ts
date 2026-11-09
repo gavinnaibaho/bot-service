@@ -67,8 +67,8 @@ export function panelMessage(config: ShopConfig) {
         : `🔴 **TOKO SEDANG TUTUP**${config.close_reason ? `\n> ${config.close_reason}` : ""}\n\n`;
 
     const embed: APIEmbed = {
-        title: `🛒 ${store} — Order Center`,
         description:
+            `# 🛒 ${store} — Order Center\n` +
             status +
             `**Selamat datang di sistem order ${store}!**\n\n` +
             "Klik salah satu tombol di bawah sesuai jenis order kamu untuk langsung membuat tiket.\n\n" +
