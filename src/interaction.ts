@@ -393,6 +393,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return;
                     }
 
+                    case "toko-reset": {
+                        if (!admin) return say("❌ Hanya admin.");
+                        if (String(getOption(opts, "konfirmasi")?.value ?? "") !== "RESET") return say("Dibatalkan. Ketik `RESET` (huruf besar) di opsi **konfirmasi** untuk mereset data pesanan.");
+                        const stats = await shopDb.getShopStats(guildId, startOfTodayWIB());
+                        const active = stats.pending.menunggu_pembayaran + stats.pending.menunggu_verifikasi + stats.pending.diproses;
+                        if (active > 0) return say(`❌ Masih ada **${active}** pesanan aktif. Selesaikan atau batalkan dulu, lalu tutup tiketnya sebelum reset.`);
+                        await defer();
+                        const removed = await shopDb.resetOrders(guildId);
+                        await refreshLeaderboard(api, guildId);
+                        if (config) await logToChannel(api, config, { title: "♻️ Data pesanan direset", description: `${removed} pesanan dihapus oleh <@${userId}>. Nomor pesanan dimulai lagi dari #0001.`, color: brandColor() });
+                        return edit({ content: `♻️ **${removed}** pesanan dihapus. Pesanan berikutnya akan bernomor **#0001**.\nLeaderboard, statistik, dan riwayat pembeli ikut kosong. Pesan lama di channel (vouch, riwayat, log) dan role loyalitas yang sudah diberikan **tidak** dihapus otomatis.` });
+                    }
+
                     case "toko-pembayaran":
                         await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null));
                         replied = true;

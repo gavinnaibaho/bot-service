@@ -120,6 +120,16 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "toko-reset",
+        description: "Hapus SEMUA data pesanan & mulai nomor pesanan dari #0001 (pengaturan toko tetap)",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.String, name: "konfirmasi", description: "Ketik RESET untuk melanjutkan", required: true, max_length: 10 },
+        ],
+    },
+    {
         name: "toko-pembayaran",
         description: "Atur info pembayaran (rekening, e-wallet, link QRIS) yang ditampilkan di tiket",
         type: ApplicationCommandType.ChatInput,

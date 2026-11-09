@@ -495,6 +495,27 @@ export async function getShopStats(guild_id: string, todayStart: number): Promis
     };
 }
 
+// ---------- Reset ----------
+
+/**
+ * Hapus semua pesanan server ini dan mulai nomor pesanan dari #0001 lagi.
+ * Pengaturan toko, harga, daftar harga, dan role loyalitas tidak ikut terhapus.
+ * Mengembalikan jumlah pesanan yang dihapus.
+ */
+export async function resetOrders(guild_id: string): Promise<number> {
+    return db.begin(async (tx) => {
+        const [c] = await tx`SELECT COUNT(*) AS n FROM shop_orders WHERE guild_id = ${guild_id}`;
+        await tx`DELETE FROM shop_orders WHERE guild_id = ${guild_id}`;
+        const [left] = await tx`SELECT COUNT(*) AS n FROM shop_orders`;
+        if (Number(left?.n ?? 0) === 0) {
+            if (db.options.adapter === "sqlite") await tx`DELETE FROM sqlite_sequence WHERE name = 'shop_orders'`.catch(() => null);
+            else if (db.options.adapter === "postgres") await tx`ALTER TABLE shop_orders ALTER COLUMN id RESTART WITH 1`.catch(() => null);
+            else await tx`ALTER TABLE shop_orders AUTO_INCREMENT = 1`.catch(() => null);
+        }
+        return Number(c?.n ?? 0);
+    });
+}
+
 // ---------- Leaderboard ----------
 
 export type LeaderboardEntry = { user_id: string; spent: number; robux: number; orders: number };

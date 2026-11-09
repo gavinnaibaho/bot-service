@@ -121,4 +121,11 @@ await s.completeOrder(G, joki.id, "555");
 assert((await s.getGlobalTotals(G)).spending === 390000 + 250000, "pendapatan joki masuk statistik & leaderboard");
 await s.saveShopConfig({ ...cj, boost_enabled: false });
 assert(!p.isMethodEnabled((await s.getShopConfig(G))!, "boost"), "joki bisa dinonaktifkan");
+
+// reset pesanan: nomor mulai dari 1 lagi, pengaturan tetap
+const removed = await s.resetOrders(G);
+assert(removed > 0 && (await s.getGlobalTotals(G)).orders === 0, "reset hapus semua pesanan");
+const fresh = await s.createOrder({ guild_id: G, user_id: U, robux: 100, price: 15500, stock_cost: 100, method: "username", roblox_username: "builderman", note: null });
+assert(fresh.id === 1, "nomor pesanan kembali ke #0001");
+assert((await s.getShopConfig(G))!.store_name === "Aminari Store", "pengaturan toko tidak ikut terhapus");
 });
