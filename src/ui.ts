@@ -105,7 +105,7 @@ export function panelMessage(config: ShopConfig) {
                     `🎁 ${mark("gift", "**Gift In Game** — Beli item di dalam game")}`,
                     `🏆 ${mark("boost", "**Joki / Boosting** — Naikkan rank / level game")}`,
                     "❓ **Tanya** — Pertanyaan seputar jual beli & Robux",
-                ].map((l) => `> ${l}`).join("\n> \u200b\n"), // baris kosong di dalam kutipan sebagai jarak
+                ].map((l) => `> ${l}`).join("\n"),
             ),
             text(
                 "**🧾 Alur Pemesanan**\n" +
