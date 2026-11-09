@@ -508,6 +508,10 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                 if (action === "ask") {
                     if (!config) return say("Toko belum dibuka.");
                     await defer();
+                    // Satu tiket tanya per member: cari channel tanya miliknya yang masih ada.
+                    const existing = ((await api.guilds.getChannels(guildId).catch(() => [])) as any[])
+                        .find((ch) => typeof ch.topic === "string" && ch.topic === `Tiket pertanyaan · ${userId}`);
+                    if (existing) return edit({ content: `Kamu masih punya tiket pertanyaan yang terbuka: <#${existing.id}>` });
                     const view = (PermissionFlagsBits.ViewChannel | PermissionFlagsBits.SendMessages | PermissionFlagsBits.ReadMessageHistory | PermissionFlagsBits.AttachFiles | PermissionFlagsBits.EmbedLinks);
                     const overwrites: any[] = [
                         { id: guildId, type: OverwriteType.Role, deny: PermissionFlagsBits.ViewChannel.toString() },
@@ -591,11 +595,9 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: "✅ Pesanan selesai." });
                     }
                     case "cancel": {
-                        const buyerCanCancel = isBuyer && ["menunggu_pembayaran", "menunggu_verifikasi"].includes(order.status);
-                        if (!admin && !buyerCanCancel) {
-                            return say(isBuyer ? "Pembayaranmu sudah dikonfirmasi, pembatalan hanya bisa dilakukan admin." : "❌ Kamu tidak bisa membatalkan pesanan ini.");
-                        }
-                        const from: OrderStatus[] = admin ? ["menunggu_pembayaran", "menunggu_verifikasi", "diproses"] : ["menunggu_pembayaran", "menunggu_verifikasi"];
+                        // Hanya admin yang boleh membatalkan pesanan.
+                        if (!admin) return say(isBuyer ? "Pembatalan pesanan hanya bisa dilakukan admin. Silakan sampaikan di tiket ini." : "❌ Kamu tidak bisa membatalkan pesanan ini.");
+                        const from: OrderStatus[] = ["menunggu_pembayaran", "menunggu_verifikasi", "diproses"];
                         const updated = await shopDb.transitionOrder(guildId, orderId, from, "dibatalkan", userId);
                         if (!updated) return stale();
                         await say("Pesanan dibatalkan.");
@@ -615,7 +617,8 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     }
                     case "close": {
                         if (!shopDb.FINAL_STATUSES.includes(order.status)) return say("Tiket hanya bisa ditutup setelah pesanan selesai atau dibatalkan.");
-                        if (!admin && !isBuyer) return say("❌ Kamu tidak bisa menutup tiket ini.");
+                        // Hanya admin yang boleh menutup tiket pesanan.
+                        if (!admin) return say("🔒 Tiket pesanan hanya bisa ditutup oleh admin.");
                         if (!order.channel_id) return say("Tiket sudah ditutup.");
                         await say("🔒 Tiket ditutup dalam 5 detik…");
                         const channelId = order.channel_id;

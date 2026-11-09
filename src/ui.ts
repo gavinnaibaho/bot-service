@@ -633,12 +633,12 @@ export function orderButtons(order: Order): Row[] {
         case "menunggu_pembayaran":
             return [row(
                 button(`shop:verify:${id}`, "Konfirmasi Bayar (Admin)", ButtonStyle.Success, "✅"),
-                button(`shop:cancel:${id}`, "Batalkan", ButtonStyle.Danger, "✖️"),
+                button(`shop:cancel:${id}`, "Batalkan (Admin)", ButtonStyle.Danger, "✖️"),
             )];
         case "menunggu_verifikasi": // status lama, diperlakukan sama seperti menunggu pembayaran
             return [row(
                 button(`shop:verify:${id}`, "Konfirmasi Bayar (Admin)", ButtonStyle.Success, "✅"),
-                button(`shop:cancel:${id}`, "Batalkan", ButtonStyle.Danger, "✖️"),
+                button(`shop:cancel:${id}`, "Batalkan (Admin)", ButtonStyle.Danger, "✖️"),
             )];
         case "diproses":
             return [row(
@@ -648,10 +648,10 @@ export function orderButtons(order: Order): Row[] {
         case "selesai":
             return [row(
                 button(`shop:testi:${id}`, "Beri Testimoni", ButtonStyle.Primary, "⭐"),
-                button(`shop:close:${id}`, "Tutup Tiket", ButtonStyle.Secondary, "🔒"),
+                button(`shop:close:${id}`, "Tutup Tiket (Admin)", ButtonStyle.Secondary, "🔒"),
             )];
         case "dibatalkan":
-            return [row(button(`shop:close:${id}`, "Tutup Tiket", ButtonStyle.Secondary, "🔒"))];
+            return [row(button(`shop:close:${id}`, "Tutup Tiket (Admin)", ButtonStyle.Secondary, "🔒"))];
     }
 }
 

@@ -38,10 +38,10 @@ Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
         ↓  admin cek bukti, klik ✅ Konfirmasi Bayar
 ⚙️ Diproses  (admin mengirim Robux/item sesuai metode; untuk GIG admin mengisi total harga saat konfirmasi)
         ↓  admin: Robux Terkirim (Selesai)
-✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket
+✅ Selesai  →  riwayat transaksi, leaderboard diperbarui, role loyalitas, tombol ⭐ Testimoni & 🔒 Tutup Tiket (admin)
 ```
 
-Pembeli bisa membatalkan sebelum pembayaran dikonfirmasi. Setelah itu hanya admin yang bisa membatalkan. Satu pembeli hanya boleh punya satu pesanan aktif.
+Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli hanya boleh punya satu pesanan aktif dan satu tiket Tanya yang terbuka (tiket Tanya bisa ditutup sendiri oleh pembeli).
 
 ## Perintah
 
