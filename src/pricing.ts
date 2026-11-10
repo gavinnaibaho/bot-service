@@ -71,6 +71,11 @@ export function enabledMethods(config: ShopConfig): DeliveryMethod[] {
     return METHODS.filter((m) => isMethodEnabled(config, m));
 }
 
+/** Hasil /kalkulator: rate = Rupiah per 1 Robux (tarif per 100 Robux ÷ 100). */
+export function calculate(amount: number, ratePerRobux: number): number {
+    return Math.ceil(Math.round(amount * ratePerRobux * 100) / 100);
+}
+
 /** Format "Rp 15.500" (dengan spasi) untuk daftar harga. */
 export function rupiahList(n: number): string {
     return "Rp " + Math.round(n).toLocaleString("id-ID");

@@ -255,6 +255,25 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "kalkulator",
+        description: "Hitung harga Robux per layanan (hasilnya terlihat di channel)",
+        type: ApplicationCommandType.ChatInput,
+        ...guildOnly,
+        options: [
+            {
+                type: ApplicationCommandOptionType.String, name: "layanan", description: "Layanan Robux", required: true,
+                choices: [
+                    { name: "Via Send Username", value: "username" },
+                    { name: "Via Login", value: "login" },
+                    { name: "Group Payout", value: "group" },
+                    { name: "Gift In Game (GIG)", value: "gift" },
+                ],
+            },
+            { type: ApplicationCommandOptionType.Integer, name: "jumlah", description: "Jumlah Robux, contoh 1499", required: true, min_value: 1, max_value: 10_000_000 },
+            { type: ApplicationCommandOptionType.Number, name: "rate", description: "Rate custom Rupiah per 1 Robux, contoh 94 (kosongkan = rate toko)", min_value: 0.01, max_value: 100_000 },
+        ],
+    },
+    {
         name: "leaderboard",
         description: "Lihat top 10 pembeli",
         type: ApplicationCommandType.ChatInput,

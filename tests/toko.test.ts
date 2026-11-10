@@ -174,3 +174,10 @@ test("tarif GIG lewat /setup-harga", async () => {
     c = (await s.getShopConfig(G))!;
     expect(p.isMethodEnabled(c, "gift")).toBe(true); // 0 = kembali manual, bukan nonaktif
 });
+
+test("kalkulator", async () => {
+    const p = await import("../src/pricing");
+    expect(p.calculate(1499, 94)).toBe(140906);
+    expect(p.calculate(439, 155)).toBe(68045);
+    expect(p.calculate(3, 155.5)).toBe(467); // 466,5 dibulatkan ke atas
+});

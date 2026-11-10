@@ -292,6 +292,18 @@ export function statusChannelName(current: string, open: boolean): string {
 
 // ---------- Kalkulator ----------
 
+/** Hasil /kalkulator dalam teks biasa. */
+export function calculatorMessage(method: DeliveryMethod, amount: number, rate: number, total: number): string {
+    const fmt = (n: number) => n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+    const short = method === "gift" ? "GIG" : METHOD_LABEL[method];
+    return [
+        `🧮 **Hasil Perhitungan (${short})**`,
+        `💵 Nominal: **${fmt(amount)}** Robux`,
+        `📊 Rate: **x${fmt(rate)}**`,
+        `➡️ Hasil: **${rupiah(total)}**`,
+    ].join("\n");
+}
+
 export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
     const methods = enabledMethods(config).filter((m) => !isManual(m));
     const fields = methods.map((m) => {

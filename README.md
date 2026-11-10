@@ -65,7 +65,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/pesanan id` | Detail pesanan |
 | `/loyalitas atur\|hapus\|daftar` | Kelola role loyalitas |
 
-**Member**: `/harga`, `/riwayat`, `/leaderboard`.
+**Member**: `/harga`, `/kalkulator layanan jumlah [rate]` (hasil terlihat di channel, contoh: 1.499 Robux × x94 = Rp140.906; rate kosong = rate toko dari `/setup-harga`), `/riwayat`, `/leaderboard`.
 
 ## Setup
 

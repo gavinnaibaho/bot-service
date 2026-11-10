@@ -16,7 +16,7 @@ import { hasPermission, trim } from "./tools";
 import * as shopDb from "./db";
 import type { DeliveryMethod, Order, OrderStatus, ShopConfig } from "./db";
 import { SHOP_COMMAND_NAMES } from "./commands";
-import { METHODS, METHOD_LABEL, isManual, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
+import { METHODS, METHOD_LABEL, calculate, isManual, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
 import {
     instructionsEmbed,
     methodFromValue,
@@ -47,6 +47,7 @@ import {
     statusChannelName,
     serviceStatusChannelName,
     middlemanPanelMessage,
+    calculatorMessage,
     middlemanModal,
     middlemanEmbed,
     middlemanTicketMessage,
@@ -567,6 +568,16 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     case "harga": {
                         if (!config) return say("Toko belum dibuka.");
                         return reply({ embeds: [priceEmbed(config, Number(getOption(opts, "jumlah")?.value))] });
+                    }
+
+                    case "kalkulator": {
+                        if (!config) return say("Toko belum dibuka.");
+                        const method = getOption(opts, "layanan")?.value as DeliveryMethod;
+                        const amount = Number(getOption(opts, "jumlah")?.value);
+                        const custom = getOption(opts, "rate")?.value;
+                        const rate = custom !== undefined ? Number(custom) : methodPrice(config, method) / 100;
+                        if (!(rate > 0)) return say(`❌ Rate ${METHOD_LABEL[method]} belum diatur. Isi opsi **rate** (contoh \`rate:94\`) atau atur dulu dengan \`/setup-harga\`.`);
+                        return reply({ content: calculatorMessage(method, amount, rate, calculate(amount, rate)) }, false);
                     }
 
                     case "riwayat": {
