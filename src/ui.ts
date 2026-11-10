@@ -297,9 +297,9 @@ export function calculatorMessage(method: DeliveryMethod, amount: number, rate: 
     const fmt = (n: number) => n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
     const short = method === "gift" ? "GIG" : METHOD_LABEL[method];
     return [
-        `🧮 **Hasil Perhitungan (${short})**`,
-        `💵 Nominal: **${fmt(amount)}** Robux`,
-        `📊 Rate: **x${fmt(rate)}**`,
+        `🧮 Hasil Perhitungan (${short})`,
+        `💵 Nominal: ${fmt(amount)} Robux`,
+        `📊 Rate: x${fmt(rate)}`,
         `➡️ Hasil: **${rupiah(total)}**`,
     ].join("\n");
 }
