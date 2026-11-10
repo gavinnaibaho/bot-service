@@ -293,14 +293,15 @@ export function statusChannelName(current: string, open: boolean): string {
 // ---------- Kalkulator ----------
 
 /** Hasil /kalkulator dalam teks biasa. */
-export function calculatorMessage(method: DeliveryMethod, amount: number, rate: number, total: number): string {
+export function calculatorMessage(store: string, method: DeliveryMethod, amount: number, rate: number, total: number): string {
     const fmt = (n: number) => n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
-    const short = method === "gift" ? "GIG" : METHOD_LABEL[method];
+    const line = "───────────────";
     return [
-        `🧮 Hasil Perhitungan (${short})`,
-        `💵 Nominal: ${fmt(amount)} Robux`,
-        `📊 Rate: x${fmt(rate)}`,
-        `➡️ Hasil: **${rupiah(total)}**`,
+        `🍀 **${store}** · ${METHOD_LABEL[method]}`,
+        line,
+        `⏣ ${fmt(amount)} Robux × Rp${fmt(rate)}`,
+        line,
+        `Total: **${rupiah(total)}**`,
     ].join("\n");
 }
 

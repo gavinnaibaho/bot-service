@@ -577,7 +577,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const custom = getOption(opts, "rate")?.value;
                         const rate = custom !== undefined ? Number(custom) : methodPrice(config, method) / 100;
                         if (!(rate > 0)) return say(`❌ Rate ${METHOD_LABEL[method]} belum diatur. Isi opsi **rate** (contoh \`rate:94\`) atau atur dulu dengan \`/setup-harga\`.`);
-                        return reply({ content: calculatorMessage(method, amount, rate, calculate(amount, rate)) }, false);
+                        return reply({ content: calculatorMessage(config.store_name, method, amount, rate, calculate(amount, rate)) }, false);
                     }
 
                     case "riwayat": {
