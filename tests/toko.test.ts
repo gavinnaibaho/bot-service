@@ -153,3 +153,24 @@ test("deskripsi command maks. 100 karakter (batas Discord)", async () => {
     ]);
     expect(walk(shopCommandsPayload as any[])).toEqual([]);
 });
+
+test("tarif GIG lewat /setup-harga", async () => {
+    const s = await import("../src/db");
+    const p = await import("../src/pricing");
+    const G = "gig-guild";
+    await s.saveShopConfig(s.defaultConfig(G));
+    let c = (await s.getShopConfig(G))!;
+    const manual = p.validateOrder(c, 450, "gift");
+    expect(manual.ok && manual.price).toBe(0); // tanpa tarif: harga manual
+    await s.setMethodPrice(G, "gift", 15500);
+    c = (await s.getShopConfig(G))!;
+    expect(c.price_gig).toBe(15500);
+    expect(p.isMethodEnabled(c, "gift")).toBe(true);
+    const priced = p.validateOrder(c, 450, "gift");
+    expect(priced.ok && priced.price).toBe(69750);
+    const tiny = p.validateOrder(c, 5, "gift"); // GIG tidak kena minimal order
+    expect(tiny.ok).toBe(true);
+    await s.setMethodPrice(G, "gift", 0);
+    c = (await s.getShopConfig(G))!;
+    expect(p.isMethodEnabled(c, "gift")).toBe(true); // 0 = kembali manual, bukan nonaktif
+});

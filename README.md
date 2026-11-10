@@ -51,7 +51,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | Perintah | Fungsi |
 |---|---|
 | `/toko-setup` | Role admin, kategori tiket, channel log & testimoni, GIG & Joki aktif/nonaktif, min/maks order. Juga nama toko, role ping, channel pengumuman, riwayat, leaderboard, dan pilihan ganti nama channel. Opsi yang tidak diisi tetap seperti sebelumnya |
-| `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya |
+| `/setup-harga metode harga channel` | Atur harga per 100 R$ untuk Via Login / Via Send Username / Group Payout / Gift In Game dan kirim daftar harganya ke channel. `harga:0` = nonaktifkan metode & hapus daftarnya. Untuk GIG, `harga:0` = kembali ke harga manual (admin isi total saat konfirmasi) |
 | `/open` | Buka toko |
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
 | `/announce [channel] [ping] [role] [warna] [gambar]` | Kirim pengumuman penting lewat form. Opsi `gambar` untuk upload banner langsung. Channel default = channel pengumuman toko |

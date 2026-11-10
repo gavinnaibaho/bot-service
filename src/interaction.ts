@@ -332,7 +332,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     `**Kategori tiket:** ${c.ticket_category_id ? `<#${c.ticket_category_id}>` : "_belum (tiket dibuat tanpa kategori)_"}`,
                                     `**Log:** ${c.log_channel_id ? `<#${c.log_channel_id}>` : "_belum_"}`,
                                     `**Testimoni:** ${c.testimonial_channel_id ? `<#${c.testimonial_channel_id}>` : "_belum_"}`,
-                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? "aktif (harga manual)" : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
+                                    ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? (methodPrice(c, m) ? `aktif · ${rupiah(methodPrice(c, m))} / 100 R$` : "aktif (harga manual)") : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
                                     `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
                                     `**Warna toko:** \`#${c.brand_color.toString(16).padStart(6, "0").toUpperCase()}\` · **Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? (c.ping_role_id === guildId ? "@everyone" : `<@&${c.ping_role_id}>`) : "_tidak ada_"}`,
@@ -349,7 +349,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
                     case "setup-harga": {
                         if (!config) return say("❌ Jalankan `/toko-setup` dulu.");
-                        const method = getOption(opts, "metode")?.value as Exclude<DeliveryMethod, "gift" | "boost">;
+                        const method = getOption(opts, "metode")?.value as Exclude<DeliveryMethod, "boost">;
                         const harga = Number(getOption(opts, "harga")?.value ?? 0);
                         const channelOpt = getOption(opts, "channel")?.value as string | undefined;
                         const existing = await shopDb.getPriceList(guildId, method);
@@ -376,10 +376,12 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             await shopDb.savePriceList({ guild_id: guildId, method, channel_id: channelId!, message_id: msg.id });
                         }
                         await refreshPanel(api, guildId);
-                        await logToChannel(api, updated, { title: "💰 Harga diubah", description: `<@${userId}>: ${METHOD_LABEL[method]} → ${harga ? `${rupiah(harga)} / 100 R$` : "nonaktif"}`, color: brandColor() });
+                        await logToChannel(api, updated, { title: "💰 Harga diubah", description: `<@${userId}>: ${METHOD_LABEL[method]} → ${harga ? `${rupiah(harga)} / 100 R$` : method === "gift" ? "harga manual" : "nonaktif"}`, color: brandColor() });
                         return edit({
                             content: harga === 0
-                                ? `🚫 ${METHOD_LABEL[method]} dinonaktifkan dan daftar harganya dihapus.`
+                                ? method === "gift"
+                                    ? "✅ Tarif GIG dihapus. Harga GIG kembali dihitung manual oleh admin saat konfirmasi pembayaran (untuk menonaktifkan GIG pakai `/toko-setup gig_aktif:False`)."
+                                    : `🚫 ${METHOD_LABEL[method]} dinonaktifkan dan daftar harganya dihapus.`
                                 : `✅ ${METHOD_LABEL[method]}: ${rupiah(harga)} / 100 R$. Daftar harga ada di <#${channelId}> dan akan otomatis diperbarui.`,
                         });
                     }
@@ -719,7 +721,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (!admin) return say("❌ Hanya admin yang bisa mengonfirmasi pembayaran.");
                         if (!["menunggu_pembayaran", "menunggu_verifikasi"].includes(order.status)) return stale();
                         // GIG: admin mengisi total harga yang dibayar pembeli
-                        if (isManual(order.method)) {
+                        if (isManual(order.method) && order.price <= 0) {
                             await api.interactions.createModal(interaction.id, interaction.token, gigPriceModal(order));
                             replied = true;
                             return;

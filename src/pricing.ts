@@ -48,10 +48,10 @@ export function priceFor(robux: number, pricePer100: number): number {
     return Math.ceil((robux * pricePer100) / 100);
 }
 
-/** Tarif per 100 Robux. GIG selalu 0 karena harganya dihitung manual oleh admin. */
+/** Tarif per 100 Robux. GIG: 0 = harga dihitung manual oleh admin. Joki selalu manual. */
 export function methodPrice(config: ShopConfig, method: DeliveryMethod): number {
     switch (method) {
-        case "gift": return 0;
+        case "gift": return config.price_gig;
         case "boost": return 0;
         case "group": return config.price_group;
         case "username": return config.price_username;
@@ -125,8 +125,8 @@ export function validateOrder(config: ShopConfig, amount: number, method: Delive
     // Joki: bukan pembelian Robux, harga & estimasi waktu ditentukan admin.
     if (method === "boost") return { ok: true, robux: 0, price: 0, stockCost: 0 };
     if (!Number.isInteger(amount) || amount <= 0) return { ok: false, error: "Jumlah Robux harus berupa angka bulat positif." };
-    // GIG: harga item berubah-ubah, dihitung manual oleh admin; batas min/maks tidak berlaku.
-    if (method === "gift") return { ok: true, robux: amount, price: 0, stockCost: amount };
+    // GIG: pakai tarif /setup-harga kalau ada, kalau tidak dihitung manual oleh admin; batas min/maks tidak berlaku.
+    if (method === "gift") return { ok: true, robux: amount, price: config.price_gig > 0 ? priceFor(amount, config.price_gig) : 0, stockCost: amount };
     if (amount < config.min_order) return { ok: false, error: `Minimal order ${robux(config.min_order)}.` };
     if (amount > config.max_order) return { ok: false, error: `Maksimal order ${robux(config.max_order)}.` };
     const stockCost = stockCostFor(amount);

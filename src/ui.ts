@@ -298,7 +298,11 @@ export function priceEmbed(config: ShopConfig, amount: number): APIEmbed {
         const price = priceFor(amount, methodPrice(config, m));
         return { name: methodLabel(m), value: `**${rupiah(price)}**`, inline: true };
     });
-    if (isMethodEnabled(config, "gift")) fields.push({ name: methodLabel("gift"), value: "Harga dihitung admin sesuai item", inline: false });
+    if (isMethodEnabled(config, "gift")) {
+        fields.push(config.price_gig > 0
+            ? { name: methodLabel("gift"), value: `**${rupiah(priceFor(amount, config.price_gig))}**`, inline: true }
+            : { name: methodLabel("gift"), value: "Harga dihitung admin sesuai item", inline: false });
+    }
     if (isMethodEnabled(config, "boost")) fields.push({ name: methodLabel("boost"), value: "Harga dihitung admin sesuai game & target rank", inline: false });
     const warnings: string[] = [];
     if (amount < config.min_order) warnings.push(`⚠️ Di bawah minimal order (${robux(config.min_order)}).`);
@@ -435,12 +439,13 @@ export function gigPriceModal(order: Order): APIModalInteractionResponseCallback
 /** Daftar harga satu metode, format: "⏣ 100 Robux — Rp 15.500". */
 export function priceListMessage(config: ShopConfig, method: DeliveryMethod) {
     const per100 = methodPrice(config, method);
-    const tiers = PRICE_TIERS.filter((t) => t >= config.min_order && t <= config.max_order);
+    // GIG tidak memakai batas min/maks order.
+    const tiers = method === "gift" ? PRICE_TIERS : PRICE_TIERS.filter((t) => t >= config.min_order && t <= config.max_order);
     const lines = (tiers.length ? tiers : PRICE_TIERS).map((t) => `⏣ ${t.toLocaleString("id-ID")} Robux — ${rupiahList(priceFor(t, per100))}`);
     return {
         embeds: [{
             title: `${METHOD_EMOJI[method]} ${METHOD_LABEL[method]}`,
-            description: lines.join("\n") + "\n\n-# Jumlah lain? Cek dengan `/harga`. Order lewat panel toko 🛒",
+            description: (method === "gift" ? "-# Harga sesuai jumlah Robux item di dalam game\n" : "") + lines.join("\n") + "\n\n-# Jumlah lain? Cek dengan `/harga`. Order lewat panel toko 🛒",
             color: brandColor(),
             footer: { text: `${config.store_name} • Harga dapat berubah sewaktu-waktu` },
             timestamp: new Date().toISOString(),
@@ -593,7 +598,7 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
     if (order.method === "boost") {
         steps.push("**1. Tunggu admin menghitung harga & estimasi waktu** joki kamu dan menyebutkannya di tiket ini.");
         steps.push("**2. Bayar sesuai total dari admin**, lalu kirim foto bukti transfer di chat tiket ini.");
-    } else if (order.method === "gift") {
+    } else if (order.method === "gift" && order.price <= 0) {
         steps.push("**1. Tunggu admin menghitung harga** item kamu dan menyebutkan totalnya di tiket ini.");
         steps.push("**2. Bayar sesuai total dari admin**, lalu kirim foto bukti transfer di chat tiket ini.");
     } else {
