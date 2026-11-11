@@ -174,10 +174,20 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
-        name: "toko-pembayaran",
-        description: "Atur info pembayaran (rekening, e-wallet, link QRIS) yang ditampilkan di tiket",
+        name: "toko-set-pembayaran",
+        description: "Atur metode pembayaran: upload gambar QRIS dan daftar rekening / e-wallet",
         type: ApplicationCommandType.ChatInput,
         default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.Attachment, name: "qris", description: "Upload gambar QRIS (kosongkan = QRIS lama tetap dipakai)" },
+            { type: ApplicationCommandOptionType.Boolean, name: "hapus_qris", description: "Hapus gambar QRIS yang tersimpan" },
+        ],
+    },
+    {
+        name: "toko-pembayaran",
+        description: "Tampilkan metode pembayaran toko (QRIS, rekening, e-wallet) di channel ini",
+        type: ApplicationCommandType.ChatInput,
         ...guildOnly,
     },
     {

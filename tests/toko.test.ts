@@ -181,3 +181,16 @@ test("kalkulator", async () => {
     expect(p.calculate(439, 155)).toBe(68045);
     expect(p.calculate(3, 155.5)).toBe(467); // 466,5 dibulatkan ke atas
 });
+
+test("gambar QRIS tersimpan di database", async () => {
+    const s = await import("../src/db");
+    const G = "qris-guild";
+    expect(await s.getQris(G)).toBeNull();
+    const data = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+    await s.setQris(G, { name: "qris.png", data });
+    const got = await s.getQris(G);
+    expect(got?.name).toBe("qris.png");
+    expect(got?.data.equals(data)).toBe(true);
+    await s.setQris(G, null);
+    expect(await s.getQris(G)).toBeNull();
+});

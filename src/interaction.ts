@@ -35,6 +35,7 @@ import {
     rolePing,
     panelMessage,
     paymentInfoModal,
+    paymentMessage,
     priceEmbed,
     statsEmbed,
     testimonialModal,
@@ -64,6 +65,9 @@ type Api = API;
 /** Gambar yang di-upload lewat opsi /announce gambar, menunggu form diisi (per admin, 15 menit). */
 const pendingAnnounceImages = new Map<string, { url: string; filename: string; at: number }>();
 const MAX_ANNOUNCE_IMAGE = 10 * 1024 * 1024;
+/** QRIS yang di-upload lewat /toko-set-pembayaran, menunggu form disubmit (maks. 15 menit). url kosong = hapus QRIS. */
+const pendingQris = new Map<string, { url: string; filename: string; at: number }>();
+const MAX_QRIS_IMAGE = 5 * 1024 * 1024;
 
 function isShopInteraction(i: APIInteraction): boolean {
     if (i.type === InteractionType.ApplicationCommand) return SHOP_COMMAND_NAMES.has(i.data.name);
@@ -335,7 +339,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                                     `**Testimoni:** ${c.testimonial_channel_id ? `<#${c.testimonial_channel_id}>` : "_belum_"}`,
                                     ...METHODS.map((m) => `**${methodLabel(m)}:** ${isManual(m) ? (isMethodEnabled(c, m) ? (methodPrice(c, m) ? `aktif · ${rupiah(methodPrice(c, m))} / 100 R$` : "aktif (harga manual)") : "nonaktif") : methodPrice(c, m) ? `${rupiah(methodPrice(c, m))} / 100 R$` : "nonaktif — atur dengan `/setup-harga`"}`),
                                     `**Order:** ${robux(c.min_order)} – ${robux(c.max_order)}`,
-                                    `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-pembayaran`_"}`,
+                                    `**Info pembayaran:** ${c.payment_info ? "sudah diatur" : "_belum — pakai `/toko-set-pembayaran`_"}`,
                                     `**Warna toko:** \`#${c.brand_color.toString(16).padStart(6, "0").toUpperCase()}\` · **Nama toko:** ${c.store_name} · **Role ping:** ${c.ping_role_id ? (c.ping_role_id === guildId ? "@everyone" : `<@&${c.ping_role_id}>`) : "_tidak ada_"}`,
                                     `**Riwayat:** ${c.history_channel_id ? `<#${c.history_channel_id}>` : "_belum_"} · **Leaderboard:** ${c.leaderboard_channel_id ? `<#${c.leaderboard_channel_id}>` : "_belum_"}`,
                                     `**Status:** ${c.is_open ? "🟢 Buka" : "🔴 Tutup"} · **Pengumuman:** ${c.announce_channel_id ? `<#${c.announce_channel_id}>` : "_belum_"} · **Ganti nama channel:** ${c.rename_channel ? "ya" : "tidak"}`,
@@ -486,10 +490,37 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return reply({ embeds: [{ title: "📡 Channel Status", color: brandColor(), description: list.length ? list.map((x) => `**${labels[x.status_key]}** → <#${x.channel_id}>`).join("\n") : "_Belum ada. Pakai `/status-channel atur`._" }] });
                     }
 
-                    case "toko-pembayaran":
-                        await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null));
+                    case "toko-pembayaran": {
+                        const qris = await shopDb.getQris(guildId);
+                        if (!config?.payment_info && !qris) return say("Metode pembayaran belum diatur admin.");
+                        replied = true;
+                        await api.interactions.reply(interaction.id, interaction.token, {
+                            embeds: [paymentMessage(config?.store_name ?? shopDb.DEFAULT_STORE_NAME, config?.payment_info ?? null, qris?.name ?? null)],
+                            allowed_mentions: { parse: [] },
+                            ...(qris ? { files: [qris] } : {}),
+                        } as any);
+                        return;
+                    }
+
+                    case "toko-set-pembayaran": {
+                        const removeQris = getOption(opts, "hapus_qris")?.value === true;
+                        const attId = getOption(opts, "qris")?.value as string | undefined;
+                        pendingQris.delete(userId);
+                        if (attId) {
+                            const att = data.resolved?.attachments?.[attId];
+                            if (!att) return say("❌ Gambar QRIS tidak terbaca, coba upload ulang.");
+                            if (!(att.content_type ?? "").startsWith("image/")) return say("❌ QRIS harus berupa gambar (PNG/JPG/WEBP).");
+                            if (att.size > MAX_QRIS_IMAGE) return say("❌ Gambar QRIS terlalu besar (maks. 5 MB).");
+                            pendingQris.set(userId, { url: att.url, filename: att.filename, at: Date.now() });
+                        } else if (removeQris) {
+                            pendingQris.set(userId, { url: "", filename: "", at: Date.now() });
+                        }
+                        const current = await shopDb.getQris(guildId);
+                        const note = attId ? "gambar baru akan disimpan ✅" : removeQris ? "akan dihapus 🗑️" : current ? "sudah tersimpan (tidak diubah)" : "belum ada — upload lewat opsi `qris`";
+                        await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null, note));
                         replied = true;
                         return;
+                    }
 
                     case "toko-panel": {
                         await defer(); // kirim panel bisa lebih dari 3 detik
@@ -875,8 +906,30 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!admin) return say("❌ Hanya admin.");
                     const c = config ?? shopDb.defaultConfig(guildId);
                     c.payment_info = trim((values.payment_info ?? "").trim(), 1500) || null;
+                    const pending = pendingQris.get(userId);
+                    pendingQris.delete(userId);
+                    if (pending && Date.now() - pending.at < 15 * 60 * 1000) {
+                        await defer();
+                        if (!pending.url) {
+                            await shopDb.setQris(guildId, null);
+                        } else {
+                            const res = await fetch(pending.url).catch(() => null);
+                            if (!res?.ok) return edit({ content: "❌ Gagal mengambil gambar QRIS, ulangi `/toko-set-pembayaran`." });
+                            const ext = (pending.filename.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                            await shopDb.setQris(guildId, { name: `qris.${ext}`, data: Buffer.from(await res.arrayBuffer()) });
+                        }
+                    }
                     await shopDb.saveShopConfig(c);
-                    return reply({ content: "✅ Info pembayaran disimpan. Pratinjau:", embeds: [{ description: c.payment_info ?? "-", color: brandColor() }] });
+                    const qris = await shopDb.getQris(guildId);
+                    const preview = {
+                        content: "✅ Metode pembayaran disimpan. Pratinjau `/toko-pembayaran`:",
+                        embeds: [paymentMessage(c.store_name, c.payment_info, qris?.name ?? null)],
+                        allowed_mentions: { parse: [] },
+                        ...(qris ? { files: [qris] } : {}),
+                    } as any;
+                    if (deferred) return api.interactions.editReply(applicationId || interaction.application_id, interaction.token, preview);
+                    replied = true;
+                    return api.interactions.reply(interaction.id, interaction.token, { ...preview, flags: MessageFlags.Ephemeral });
                 }
 
                 if (kind === "mm") {
@@ -923,7 +976,8 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     await shopDb.setMiddlemanChannel(mm.id, channel.id);
                     const mc = await shopDb.getMiddlemanConfig(guildId);
                     const withChannel = { ...mm, channel_id: channel.id };
-                    await api.channels.createMessage(channel.id, middlemanTicketMessage(withChannel, config.admin_role_id, mc.fee, config.payment_info));
+                    const mmQris = await shopDb.getQris(guildId);
+                    await api.channels.createMessage(channel.id, { ...middlemanTicketMessage(withChannel, config.admin_role_id, mc.fee, config.payment_info, mmQris?.name ?? null), ...(mmQris ? { files: [mmQris] } : {}) } as any);
                     await logToChannel(api, config, { ...middlemanEmbed(withChannel, `🆕 Middleman baru ${middlemanCode(mm.id)}`, mc.fee), description: `Tiket: <#${channel.id}> (\`#${name}\`)` });
                     return edit({ content: `✅ Tiket middleman ${middlemanCode(mm.id)} dibuat: <#${channel.id}>` });
                 }
@@ -992,12 +1046,14 @@ export async function handleInteraction({ data: interaction, api, applicationId 
 
                     await shopDb.setOrderChannel(order.id, channel.id);
                     const withChannel = { ...order, channel_id: channel.id };
+                    const qris = await shopDb.getQris(guildId);
                     await api.channels.createMessage(channel.id, {
                         content: `Halo <@${userId}>! Terima kasih sudah memesan.${config.admin_role_id ? ` <@&${config.admin_role_id}>` : ""}`,
-                        embeds: [orderEmbed(withChannel), instructionsEmbed(withChannel, config)],
+                        embeds: [orderEmbed(withChannel), instructionsEmbed(withChannel, config, qris?.name ?? null)],
                         components: orderButtons(withChannel),
                         allowed_mentions: { users: [userId], roles: config.admin_role_id ? [config.admin_role_id] : [] },
-                    });
+                        ...(qris ? { files: [qris] } : {}),
+                    } as any);
                     await logToChannel(api, config, { ...orderEmbed(withChannel, `🆕 Pesanan baru ${orderCode(order.id)}`), description: `Tiket: <#${channel.id}> (\`#${prefix}-${String(order.id).padStart(4, "0")}-${username_}\`)` });
                     return edit({ content: `✅ Pesanan ${orderCode(order.id)} dibuat! Lanjutkan di <#${channel.id}>.` });
                 }

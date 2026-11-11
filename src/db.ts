@@ -246,6 +246,18 @@ CREATE TABLE IF NOT EXISTS shop_middleman_config (
             await tx`ALTER TABLE shop_config ADD COLUMN price_gig INTEGER NOT NULL DEFAULT 0`;
         },
     },
+    {
+        version: 12,
+        name: "gambar QRIS",
+        up: async (tx) => {
+            await tx`
+CREATE TABLE IF NOT EXISTS shop_payment_qris (
+  guild_id VARCHAR(20) PRIMARY KEY,
+  filename VARCHAR(64) NOT NULL,
+  data TEXT NOT NULL
+)`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -776,4 +788,25 @@ export async function saveMiddlemanConfig(c: MiddlemanConfig) {
     INSERT INTO shop_middleman_config (guild_id, fee, panel_channel_id, panel_message_id)
     VALUES (${c.guild_id}, ${c.fee}, ${c.panel_channel_id}, ${c.panel_message_id})
     ON CONFLICT(guild_id) DO UPDATE SET fee = excluded.fee, panel_channel_id = excluded.panel_channel_id, panel_message_id = excluded.panel_message_id`;
+}
+
+// ---------- Gambar QRIS ----------
+
+export type QrisImage = { name: string; data: Buffer };
+
+/** Gambar QRIS disimpan di database (base64) supaya tidak kedaluwarsa seperti link CDN Discord. */
+export async function getQris(guild_id: string): Promise<QrisImage | null> {
+    const [row] = await db`SELECT filename, data FROM shop_payment_qris WHERE guild_id = ${guild_id}`;
+    return row ? { name: String(row.filename), data: Buffer.from(String(row.data), "base64") } : null;
+}
+
+export async function setQris(guild_id: string, img: QrisImage | null) {
+    if (!img) {
+        await db`DELETE FROM shop_payment_qris WHERE guild_id = ${guild_id}`;
+        return;
+    }
+    const data = img.data.toString("base64");
+    await db`
+    INSERT INTO shop_payment_qris (guild_id, filename, data) VALUES (${guild_id}, ${img.name}, ${data})
+    ON CONFLICT(guild_id) DO UPDATE SET filename = excluded.filename, data = excluded.data`;
 }

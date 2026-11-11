@@ -534,23 +534,27 @@ export function announceMessage(store: string, title: string, body: string, colo
     };
 }
 
-export function paymentInfoModal(current: string | null): APIModalInteractionResponseCallbackData {
+export function paymentInfoModal(current: string | null, qrisNote: string): APIModalInteractionResponseCallbackData {
     return {
-        title: "Info Pembayaran",
+        title: "Atur Metode Pembayaran",
         custom_id: "shop_modal:payment",
         components: [
             {
+                type: 10, // Text Display
+                content: `**QRIS:** ${qrisNote}`,
+            } as any,
+            {
                 type: ComponentType.Label,
-                label: "Cara pembayaran",
-                description: "Ditampilkan ke pembeli di setiap tiket. Contoh: rekening, e-wallet, link gambar QRIS.",
+                label: "Daftar pembayaran lainnya",
+                description: "Rekening bank & e-wallet, satu per baris. Boleh kosong kalau hanya QRIS.",
                 component: {
                     type: ComponentType.TextInput,
                     custom_id: "payment_info",
                     style: TextInputStyle.Paragraph,
-                    placeholder: "BCA 1234567890 a.n. Nama\nDANA 08xxxxxxxxxx a.n. Nama\nQRIS: https://...",
+                    placeholder: "BCA 1234567890 a.n. Nama\nDANA 08xxxxxxxxxx a.n. Nama\nGoPay 08xxxxxxxxxx a.n. Nama",
                     value: current ?? undefined,
                     max_length: 1500,
-                    required: true,
+                    required: false,
                 },
             },
         ],
@@ -606,7 +610,7 @@ export function orderEmbed(order: Order, title?: string): APIEmbed {
     };
 }
 
-export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
+export function instructionsEmbed(order: Order, config: ShopConfig, qrisName: string | null = null): APIEmbed {
     const steps: string[] = [];
     if (order.method === "boost") {
         steps.push("**1. Tunggu admin menghitung harga & estimasi waktu** joki kamu dan menyebutkannya di tiket ini.");
@@ -650,7 +654,8 @@ export function instructionsEmbed(order: Order, config: ShopConfig): APIEmbed {
         : "**4. Tunggu admin** mengecek bukti, menekan **Konfirmasi Bayar**, lalu mengirim Robux.");
     return {
         title: "📋 Cara Menyelesaikan Pesanan",
-        description: steps.join("\n") + `\n\n💳 **Pembayaran**\n${config.payment_info ?? "_Admin belum mengatur info pembayaran. Tunggu admin di tiket ini._"}`,
+        description: steps.join("\n") + `\n\n💳 **Pembayaran**\n${paymentText(config.payment_info, qrisName)}`,
+        ...(qrisName ? { image: { url: `attachment://${qrisName}` } } : {}),
         color: brandColor(),
         footer: { text: "Jangan transfer ke nomor selain yang tertera di atas. Admin tidak pernah DM duluan." },
     };
@@ -817,7 +822,7 @@ export function middlemanEmbed(m: Middleman, title?: string, fee?: string | null
 }
 
 /** Pesan pembuka tiket middleman. */
-export function middlemanTicketMessage(m: Middleman, adminRoleId: string | null, fee: string | null, paymentInfo: string | null) {
+export function middlemanTicketMessage(m: Middleman, adminRoleId: string | null, fee: string | null, paymentInfo: string | null, qrisName: string | null = null) {
     const { buyer } = middlemanParties(m);
     const embeds: APIEmbed[] = [
         middlemanEmbed(m, undefined, fee),
@@ -827,7 +832,12 @@ export function middlemanTicketMessage(m: Middleman, adminRoleId: string | null,
             description: `${MM_FLOW.split("\n").slice(1).join("\n")}\n\n⚠️ Penjual **jangan** menyerahkan barang sebelum admin mengonfirmasi dana diterima. Semua bukti dikirim di tiket ini.`,
         },
     ];
-    if (paymentInfo) embeds.push({ title: "💳 Pembayaran ke Middleman", color: brandColor(), description: `<@${buyer}> transfer ke rekening di bawah, lalu kirim bukti di tiket ini.\n\n${paymentInfo}` });
+    if (paymentInfo || qrisName) embeds.push({
+        title: "💳 Pembayaran ke Middleman",
+        color: brandColor(),
+        description: `<@${buyer}> transfer ke salah satu metode di bawah, lalu kirim bukti di tiket ini.\n\n${paymentText(paymentInfo, qrisName)}`,
+        ...(qrisName ? { image: { url: `attachment://${qrisName}` } } : {}),
+    });
     return {
         content: `Halo <@${m.opener_id}> & <@${m.partner_id}>!${adminRoleId ? ` <@&${adminRoleId}>` : ""}`,
         embeds,
@@ -867,4 +877,26 @@ export function historyMiddlemanEmbed(m: Middleman, admin: UserLike | null): API
 
 function trimText(s: string, max: number) {
     return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+
+// ---------- Metode pembayaran ----------
+
+/** Teks pembayaran di tiket & /toko-pembayaran. */
+export function paymentText(info: string | null, qrisName: string | null): string {
+    if (!info && !qrisName) return "_Admin belum mengatur info pembayaran. Tunggu admin di tiket ini._";
+    const parts: string[] = [];
+    if (qrisName) parts.push("📷 **QRIS** — scan gambar di bawah");
+    if (info) parts.push(info);
+    return parts.join("\n\n");
+}
+
+/** Pesan publik /toko-pembayaran. */
+export function paymentMessage(store: string, info: string | null, qrisName: string | null): APIEmbed {
+    return {
+        title: "💳 Metode Pembayaran",
+        description: paymentText(info, qrisName),
+        color: brandColor(),
+        ...(qrisName ? { image: { url: `attachment://${qrisName}` } } : {}),
+        footer: { text: `${store} • Pastikan nama penerima sesuai sebelum transfer` },
+    };
 }

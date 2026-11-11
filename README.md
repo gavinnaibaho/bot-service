@@ -58,7 +58,8 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/kirim-pesan [channel]` | Kirim pesan teks biasa atas nama bot (tanpa embed), maks. 2000 karakter |
 | `/toko-reset-tiket konfirmasi:RESET` | Hapus semua data pesanan (mis. pesanan tes) dan mulai nomor dari #0001. Pengaturan, harga, dan role loyalitas tetap. Ditolak jika masih ada pesanan aktif |
 | `/status-channel atur\|hapus\|daftar` | Hubungkan channel (mis. voice di SERVER STATS) ke status toko atau layanan. Namanya otomatis berganti `🟢 ┃ …` / `🔴 ┃ …` saat /open, /close, /setup-harga, atau /toko-setup |
-| `/toko-pembayaran` | Isi info pembayaran (rekening, e-wallet, link QRIS) |
+| `/toko-set-pembayaran [qris] [hapus_qris]` | Upload gambar QRIS (opsi `qris`) lalu isi daftar rekening / e-wallet di form. QRIS disimpan di database dan otomatis tampil di setiap tiket order & middleman |
+| `/toko-pembayaran` | (Semua member) Tampilkan metode pembayaran toko di channel: QRIS + daftar rekening / e-wallet |
 | `/toko-panel` | Kirim panel toko ke channel saat ini |
 | `/middleman-panel biaya` | Kirim panel tiket middleman ke channel saat ini (biaya opsional, contoh `5% (min. Rp5.000)`) |
 | `/toko-statistik` | Panel admin |
@@ -85,7 +86,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 4. **Di server**:
    - Buat kategori `🎫 TIKET` dan role `Admin Toko`.
    - `/toko-setup role_admin:@Admin Toko kategori_tiket:🎫 TIKET channel_log:#log-toko channel_testimoni:#testimoni minimal_order:100 maksimal_order:20000`
-   - `/toko-pembayaran`, lalu isi rekening/e-wallet/QRIS.
+   - `/toko-set-pembayaran qris:<gambar QRIS>`, lalu isi rekening/e-wallet di form.
    - `/setup-harga metode:Via Send Username harga:15500 channel:#pricelist` (ulangi untuk Via Login dan Group Payout)
    - `/toko-setup nama_toko:Nama Toko Kamu role_ping:@Member channel_pengumuman:#announcement channel_riwayat:#history-transaksi channel_leaderboard:#leaderboard`
    - (opsional) `/loyalitas atur role:@Customer minimal_belanja:1` (dan misalnya `@Sultan minimal_belanja:1000000`)
