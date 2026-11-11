@@ -534,33 +534,6 @@ export function announceMessage(store: string, title: string, body: string, colo
     };
 }
 
-export function paymentInfoModal(current: string | null, qrisNote: string): APIModalInteractionResponseCallbackData {
-    return {
-        title: "Atur Metode Pembayaran",
-        custom_id: "shop_modal:payment",
-        components: [
-            {
-                type: 10, // Text Display
-                content: `**QRIS:** ${qrisNote}`,
-            } as any,
-            {
-                type: ComponentType.Label,
-                label: "Daftar pembayaran lainnya",
-                description: "Rekening bank & e-wallet, satu per baris. Boleh kosong kalau hanya QRIS.",
-                component: {
-                    type: ComponentType.TextInput,
-                    custom_id: "payment_info",
-                    style: TextInputStyle.Paragraph,
-                    placeholder: "BCA 1234567890 a.n. Nama\nDANA 08xxxxxxxxxx a.n. Nama\nGoPay 08xxxxxxxxxx a.n. Nama",
-                    value: current ?? undefined,
-                    max_length: 1500,
-                    required: false,
-                },
-            },
-        ],
-    };
-}
-
 export function testimonialModal(orderId: number): APIModalInteractionResponseCallbackData {
     return {
         title: `Testimoni Pesanan ${orderCode(orderId)}`,

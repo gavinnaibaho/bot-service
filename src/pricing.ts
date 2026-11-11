@@ -76,6 +76,12 @@ export function calculate(amount: number, ratePerRobux: number): number {
     return Math.ceil(Math.round(amount * ratePerRobux * 100) / 100);
 }
 
+/** "BCA 123 a.n. A; DANA 08xx a.n. B" → satu metode per baris. Kosong = null. */
+export function parsePaymentList(input: string): string | null {
+    const lines = input.split(/[;\n]|\s\|\s/).map((l) => l.trim()).filter(Boolean);
+    return lines.length ? lines.join("\n").slice(0, 1500) : null;
+}
+
 /** Format "Rp 15.500" (dengan spasi) untuk daftar harga. */
 export function rupiahList(n: number): string {
     return "Rp " + Math.round(n).toLocaleString("id-ID");

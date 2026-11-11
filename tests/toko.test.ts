@@ -194,3 +194,9 @@ test("gambar QRIS tersimpan di database", async () => {
     await s.setQris(G, null);
     expect(await s.getQris(G)).toBeNull();
 });
+
+test("daftar pembayaran dari satu baris", async () => {
+    const p = await import("../src/pricing");
+    expect(p.parsePaymentList("BCA 123 a.n. Gavin; DANA 08xx a.n. Gavin ;  GoPay 08yy")).toBe("BCA 123 a.n. Gavin\nDANA 08xx a.n. Gavin\nGoPay 08yy");
+    expect(p.parsePaymentList("  ;  ")).toBeNull();
+});

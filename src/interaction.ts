@@ -16,7 +16,7 @@ import { hasPermission, trim } from "./tools";
 import * as shopDb from "./db";
 import type { DeliveryMethod, Order, OrderStatus, ShopConfig } from "./db";
 import { SHOP_COMMAND_NAMES } from "./commands";
-import { METHODS, METHOD_LABEL, calculate, isManual, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
+import { METHODS, METHOD_LABEL, calculate, parsePaymentList, isManual, STATUS_LABEL, enabledMethods, isMethodEnabled, methodLabel, methodPrice, orderCode, parseAmount, robux, rupiah, startOfTodayWIB, validateOrder } from "./pricing";
 import {
     instructionsEmbed,
     methodFromValue,
@@ -34,7 +34,6 @@ import {
     announceMessage,
     rolePing,
     panelMessage,
-    paymentInfoModal,
     paymentMessage,
     priceEmbed,
     statsEmbed,
@@ -65,8 +64,6 @@ type Api = API;
 /** Gambar yang di-upload lewat opsi /announce gambar, menunggu form diisi (per admin, 15 menit). */
 const pendingAnnounceImages = new Map<string, { url: string; filename: string; at: number }>();
 const MAX_ANNOUNCE_IMAGE = 10 * 1024 * 1024;
-/** QRIS yang di-upload lewat /toko-set-pembayaran, menunggu form disubmit (maks. 15 menit). url kosong = hapus QRIS. */
-const pendingQris = new Map<string, { url: string; filename: string; at: number }>();
 const MAX_QRIS_IMAGE = 5 * 1024 * 1024;
 
 function isShopInteraction(i: APIInteraction): boolean {
@@ -505,20 +502,36 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     case "toko-set-pembayaran": {
                         const removeQris = getOption(opts, "hapus_qris")?.value === true;
                         const attId = getOption(opts, "qris")?.value as string | undefined;
-                        pendingQris.delete(userId);
+                        const lainnya = getOption(opts, "lainnya")?.value as string | undefined;
+                        const removeOther = getOption(opts, "hapus_lainnya")?.value === true;
+                        let att: any = null;
                         if (attId) {
-                            const att = data.resolved?.attachments?.[attId];
+                            att = data.resolved?.attachments?.[attId];
                             if (!att) return say("❌ Gambar QRIS tidak terbaca, coba upload ulang.");
                             if (!(att.content_type ?? "").startsWith("image/")) return say("❌ QRIS harus berupa gambar (PNG/JPG/WEBP).");
                             if (att.size > MAX_QRIS_IMAGE) return say("❌ Gambar QRIS terlalu besar (maks. 5 MB).");
-                            pendingQris.set(userId, { url: att.url, filename: att.filename, at: Date.now() });
-                        } else if (removeQris) {
-                            pendingQris.set(userId, { url: "", filename: "", at: Date.now() });
                         }
-                        const current = await shopDb.getQris(guildId);
-                        const note = attId ? "gambar baru akan disimpan ✅" : removeQris ? "akan dihapus 🗑️" : current ? "sudah tersimpan (tidak diubah)" : "belum ada — upload lewat opsi `qris`";
-                        await api.interactions.createModal(interaction.id, interaction.token, paymentInfoModal(config?.payment_info ?? null, note));
-                        replied = true;
+                        await defer();
+                        const c = config ?? shopDb.defaultConfig(guildId);
+                        if (att) {
+                            const res = await fetch(att.url).catch(() => null);
+                            if (!res?.ok) return edit({ content: "❌ Gagal mengambil gambar QRIS, coba ulangi." });
+                            const ext = (String(att.filename).split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                            await shopDb.setQris(guildId, { name: `qris.${ext}`, data: Buffer.from(await res.arrayBuffer()) });
+                        } else if (removeQris) {
+                            await shopDb.setQris(guildId, null);
+                        }
+                        if (lainnya !== undefined) c.payment_info = parsePaymentList(lainnya);
+                        else if (removeOther) c.payment_info = null;
+                        if (lainnya !== undefined || removeOther) await shopDb.saveShopConfig(c);
+                        const qris = await shopDb.getQris(guildId);
+                        const changed = Boolean(att || removeQris || lainnya !== undefined || removeOther);
+                        await api.interactions.editReply(applicationId || interaction.application_id, interaction.token, {
+                            content: changed ? "✅ Metode pembayaran disimpan. Pratinjau `/toko-pembayaran`:" : "Metode pembayaran saat ini (tidak ada yang diubah):",
+                            embeds: [paymentMessage(c.store_name, c.payment_info, qris?.name ?? null)],
+                            allowed_mentions: { parse: [] },
+                            ...(qris ? { files: [qris] } : {}),
+                        } as any);
                         return;
                     }
 
@@ -900,36 +913,6 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     if (!msg) return done(`❌ Gagal mengirim ke <#${channelId}>. Pastikan bot bisa melihat & mengirim pesan${file ? " serta melampirkan file (Attach Files)" : ""} di sana${content ? " (dan punya izin **Mention Everyone** untuk ping)" : ""}.`);
                     if (config) await logToChannel(api, config, { title: "📢 Pengumuman dikirim", description: `<@${userId}> di <#${channelId}>: **${title}**`, color: brandColor() });
                     return done(`✅ Pengumuman terkirim ke <#${channelId}>.`);
-                }
-
-                if (kind === "payment") {
-                    if (!admin) return say("❌ Hanya admin.");
-                    const c = config ?? shopDb.defaultConfig(guildId);
-                    c.payment_info = trim((values.payment_info ?? "").trim(), 1500) || null;
-                    const pending = pendingQris.get(userId);
-                    pendingQris.delete(userId);
-                    if (pending && Date.now() - pending.at < 15 * 60 * 1000) {
-                        await defer();
-                        if (!pending.url) {
-                            await shopDb.setQris(guildId, null);
-                        } else {
-                            const res = await fetch(pending.url).catch(() => null);
-                            if (!res?.ok) return edit({ content: "❌ Gagal mengambil gambar QRIS, ulangi `/toko-set-pembayaran`." });
-                            const ext = (pending.filename.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-                            await shopDb.setQris(guildId, { name: `qris.${ext}`, data: Buffer.from(await res.arrayBuffer()) });
-                        }
-                    }
-                    await shopDb.saveShopConfig(c);
-                    const qris = await shopDb.getQris(guildId);
-                    const preview = {
-                        content: "✅ Metode pembayaran disimpan. Pratinjau `/toko-pembayaran`:",
-                        embeds: [paymentMessage(c.store_name, c.payment_info, qris?.name ?? null)],
-                        allowed_mentions: { parse: [] },
-                        ...(qris ? { files: [qris] } : {}),
-                    } as any;
-                    if (deferred) return api.interactions.editReply(applicationId || interaction.application_id, interaction.token, preview);
-                    replied = true;
-                    return api.interactions.reply(interaction.id, interaction.token, { ...preview, flags: MessageFlags.Ephemeral });
                 }
 
                 if (kind === "mm") {

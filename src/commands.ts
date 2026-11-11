@@ -175,13 +175,15 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
     },
     {
         name: "toko-set-pembayaran",
-        description: "Atur metode pembayaran: upload gambar QRIS dan daftar rekening / e-wallet",
+        description: "Atur metode pembayaran: upload QRIS dan daftar rekening / e-wallet (tanpa form)",
         type: ApplicationCommandType.ChatInput,
         default_member_permissions: ADMIN,
         ...guildOnly,
         options: [
             { type: ApplicationCommandOptionType.Attachment, name: "qris", description: "Upload gambar QRIS (kosongkan = QRIS lama tetap dipakai)" },
+            { type: ApplicationCommandOptionType.String, name: "lainnya", description: "Rekening / e-wallet, pisahkan dengan ; contoh: BCA 123 a.n. Gavin; DANA 08xx a.n. Gavin", max_length: 1500 },
             { type: ApplicationCommandOptionType.Boolean, name: "hapus_qris", description: "Hapus gambar QRIS yang tersimpan" },
+            { type: ApplicationCommandOptionType.Boolean, name: "hapus_lainnya", description: "Hapus daftar rekening / e-wallet" },
         ],
     },
     {
