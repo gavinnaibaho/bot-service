@@ -34,7 +34,7 @@ import {
     announceMessage,
     rolePing,
     panelMessage,
-    paymentMessage,
+    paymentPlainMessage,
     priceEmbed,
     statsEmbed,
     testimonialModal,
@@ -492,7 +492,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         if (!config?.payment_info && !qris) return say("Metode pembayaran belum diatur admin.");
                         replied = true;
                         await api.interactions.reply(interaction.id, interaction.token, {
-                            embeds: [paymentMessage(config?.store_name ?? shopDb.DEFAULT_STORE_NAME, config?.payment_info ?? null, qris?.name ?? null)],
+                            content: paymentPlainMessage(config?.store_name ?? shopDb.DEFAULT_STORE_NAME, config?.payment_info ?? null, qris?.name ?? null),
                             allowed_mentions: { parse: [] },
                             ...(qris ? { files: [qris] } : {}),
                         } as any);
@@ -527,8 +527,7 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         const qris = await shopDb.getQris(guildId);
                         const changed = Boolean(att || removeQris || lainnya !== undefined || removeOther);
                         await api.interactions.editReply(applicationId || interaction.application_id, interaction.token, {
-                            content: changed ? "✅ Metode pembayaran disimpan. Pratinjau `/toko-pembayaran`:" : "Metode pembayaran saat ini (tidak ada yang diubah):",
-                            embeds: [paymentMessage(c.store_name, c.payment_info, qris?.name ?? null)],
+                            content: `${changed ? "✅ Metode pembayaran disimpan. Pratinjau `/toko-pembayaran`:" : "Metode pembayaran saat ini (tidak ada yang diubah):"}\n\n${paymentPlainMessage(c.store_name, c.payment_info, qris?.name ?? null)}`,
                             allowed_mentions: { parse: [] },
                             ...(qris ? { files: [qris] } : {}),
                         } as any);

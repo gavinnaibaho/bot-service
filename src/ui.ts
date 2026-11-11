@@ -873,3 +873,12 @@ export function paymentMessage(store: string, info: string | null, qrisName: str
         footer: { text: `${store} • Pastikan nama penerima sesuai sebelum transfer` },
     };
 }
+
+/** Pesan /toko-pembayaran tanpa kotak embed; gambar QRIS dilampirkan langsung di bawah teks. */
+export function paymentPlainMessage(store: string, info: string | null, qrisName: string | null): string {
+    return [
+        "💳 **Metode Pembayaran**",
+        paymentText(info, qrisName),
+        `-# ${store} • Pastikan nama penerima sesuai sebelum transfer`,
+    ].join("\n");
+}
