@@ -683,15 +683,19 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                     }
 
                     case "riwayat": {
-                        const orders = await shopDb.getUserOrders(guildId, userId, 10);
-                        const [totalRobux, totalSpent] = await Promise.all([shopDb.getUserTotalRobux(guildId, userId), shopDb.getUserTotalSpent(guildId, userId)]);
+                        const picked = getOption(opts, "pembeli")?.value as string | undefined;
+                        if (picked && picked !== userId && !admin) return say("❌ Hanya admin yang bisa melihat riwayat pembeli lain. Jalankan `/riwayat` tanpa opsi untuk melihat riwayatmu sendiri.");
+                        const target = picked ?? userId;
+                        const self = target === userId;
+                        const orders = await shopDb.getUserOrders(guildId, target, 10);
+                        const [totalRobux, totalSpent] = await Promise.all([shopDb.getUserTotalRobux(guildId, target), shopDb.getUserTotalSpent(guildId, target)]);
                         return reply({
                             embeds: [{
                                 title: "🧾 Riwayat Pesanan",
                                 color: brandColor(),
-                                description: orders.length
-                                    ? orders.map((o) => `\`${orderCode(o.id)}\` <t:${o.created_at}:d> · ${robux(o.robux)} · ${rupiah(o.price)} · ${STATUS_LABEL[o.status]}`).join("\n")
-                                    : "_Kamu belum pernah memesan._",
+                                description: (self ? "" : `Pembeli: <@${target}>\n\n`) + (orders.length
+                                    ? orders.map((o) => `\`${orderCode(o.id)}\` <t:${o.created_at}:d> · ${METHOD_LABEL[o.method]} · ${o.robux ? `${robux(o.robux)} · ` : ""}${rupiah(o.price)} · ${STATUS_LABEL[o.status]}`).join("\n")
+                                    : self ? "_Kamu belum pernah memesan._" : "_Pembeli ini belum pernah memesan lewat bot._"),
                                 footer: { text: `Total belanja: ${rupiah(totalSpent)} · Robux dibeli: ${totalRobux.toLocaleString("id-ID")} R$` },
                             }],
                         });

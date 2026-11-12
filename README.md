@@ -67,7 +67,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/pesanan id` | Detail pesanan |
 | `/loyalitas atur\|hapus\|daftar\|sinkron` | Kelola role loyalitas. `sinkron` mengecek ulang semua customer dan memberi role yang belum mereka punya (berguna setelah menambah role baru atau memperbaiki posisi role bot) |
 
-**Member**: `/harga`, `/kalkulator layanan jumlah [rate]` (hasil terlihat di channel, contoh: 1.499 Robux × x94 = Rp140.906; rate kosong = rate toko dari `/setup-harga`), `/riwayat`, `/leaderboard`.
+**Member**: `/harga`, `/kalkulator layanan jumlah [rate]` (hasil terlihat di channel, contoh: 1.499 Robux × x94 = Rp140.906; rate kosong = rate toko dari `/setup-harga`), `/riwayat` (admin bisa `/riwayat pembeli:@user` untuk melihat riwayat pembeli lain), `/leaderboard`.
 
 ## Setup
 

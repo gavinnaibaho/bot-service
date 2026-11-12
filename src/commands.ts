@@ -305,9 +305,12 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
     },
     {
         name: "riwayat",
-        description: "Lihat riwayat pesanan kamu",
+        description: "Lihat riwayat pesanan kamu (admin: bisa lihat riwayat pembeli lain)",
         type: ApplicationCommandType.ChatInput,
         ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.User, name: "pembeli", description: "Khusus admin: pembeli yang ingin dilihat riwayatnya" },
+        ],
     },
 ];
 
