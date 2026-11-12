@@ -327,6 +327,7 @@ src/
   ui.ts           embed, tombol, panel, modal
   pricing.ts      perhitungan harga & kalkulator
   db.ts           database (SQLite default) + migration
+  tools.ts        helper kecil
 tests/
   toko.test.ts    tes alur database & harga (bun test)
 ```
