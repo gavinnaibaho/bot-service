@@ -253,6 +253,7 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
                 ],
             },
             { type: ApplicationCommandOptionType.Subcommand, name: "daftar", description: "Lihat semua role loyalitas" },
+            { type: ApplicationCommandOptionType.Subcommand, name: "sinkron", description: "Cek ulang semua customer dan berikan role loyalitas yang belum mereka punya" },
         ],
     },
 

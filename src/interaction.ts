@@ -249,7 +249,7 @@ async function applyLoyaltyRoles(api: Api, guildId: string, userId: string): Pro
         await api.guilds.editMember(guildId, userId, { roles: [...member.roles, ...missing] }, { reason: "Role loyalitas toko Robux" });
         return missing;
     } catch (err) {
-        console.log(`[shop] gagal memberi role loyalitas: ${err}`);
+        console.log(`[shop] gagal memberi role loyalitas (cek posisi role bot & izin Manage Roles): ${err}`);
         return [];
     }
 }
@@ -597,6 +597,37 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                             const roleId = getOption(subOpts, "role")?.value as string;
                             const ok = await shopDb.deleteLoyaltyRole(guildId, roleId);
                             return say(ok ? `🗑️ <@&${roleId}> dihapus dari daftar loyalitas (role yang sudah diberikan tidak dicabut).` : "Role itu tidak ada di daftar loyalitas.");
+                        }
+                        if (sub.name === "sinkron") {
+                            const roles = await shopDb.getLoyaltyRoles(guildId);
+                            if (roles.length === 0) return say("Belum ada role loyalitas. Tambah dulu dengan `/loyalitas atur`.");
+                            await defer();
+                            const customers = await shopDb.getLeaderboard(guildId, 100_000);
+                            const given: string[] = [];
+                            let failed = 0;
+                            let lastError = "";
+                            for (const c of customers) {
+                                const eligible = roles.filter((r) => c.spent >= r.min_spent).map((r) => r.role_id);
+                                if (eligible.length === 0) continue;
+                                try {
+                                    const m = await api.guilds.getMember(guildId, c.user_id);
+                                    const missing = eligible.filter((r) => !m.roles.includes(r));
+                                    if (missing.length === 0) continue;
+                                    await api.guilds.editMember(guildId, c.user_id, { roles: [...m.roles, ...missing] }, { reason: "Sinkron role loyalitas" });
+                                    given.push(`<@${c.user_id}> (${rupiah(c.spent)}) → ${missing.map((r) => `<@&${r}>`).join(", ")}`);
+                                } catch (err) {
+                                    const msg = String(err);
+                                    if (msg.includes("Unknown Member")) continue; // sudah keluar dari server
+                                    failed++;
+                                    lastError = msg;
+                                }
+                            }
+                            const lines = [
+                                `🔄 Sinkron selesai: ${customers.length} customer dicek.`,
+                                given.length ? `\n✅ Role diberikan:\n${given.slice(0, 25).join("\n")}${given.length > 25 ? `\n…dan ${given.length - 25} lainnya` : ""}` : "\nTidak ada role baru yang perlu diberikan.",
+                            ];
+                            if (failed) lines.push(`\n❌ Gagal untuk ${failed} customer. ${lastError.includes("Missing Permissions") ? "Bot tidak punya izin: pindahkan role **Bum** ke atas semua role loyalitas (Server Settings → Roles) dan pastikan izin **Manage Roles** aktif." : `Error: \`${lastError.slice(0, 200)}\``}`);
+                            return edit({ content: lines.join("\n").slice(0, 2000) });
                         }
                         const roles = await shopDb.getLoyaltyRoles(guildId);
                         return reply({
