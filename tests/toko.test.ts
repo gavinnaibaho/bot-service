@@ -200,3 +200,22 @@ test("daftar pembayaran dari satu baris", async () => {
     expect(p.parsePaymentList("BCA 123 a.n. Gavin; DANA 08xx a.n. Gavin ;  GoPay 08yy")).toBe("BCA 123 a.n. Gavin\nDANA 08xx a.n. Gavin\nGoPay 08yy");
     expect(p.parsePaymentList("  ;  ")).toBeNull();
 });
+
+test("hapus data satu pembeli", async () => {
+    const s = await import("../src/db");
+    const G = "hapus-guild";
+    await s.saveShopConfig(s.defaultConfig(G));
+    const mk = (user_id: string, price: number) => s.createOrder({ guild_id: G, user_id, robux: 100, price, stock_cost: 100, method: "username", roblox_username: "x", note: null });
+    const a = await mk("asta", 205000);
+    await s.confirmOrder(G, a.id, "adm");
+    await s.completeOrder(G, a.id, "adm");
+    const b = await mk("renn", 139500);
+    await s.confirmOrder(G, b.id, "adm");
+    await s.completeOrder(G, b.id, "adm");
+    const res = await s.deleteUserOrders(G, "asta");
+    expect(res).toEqual({ removed: 1, spent: 205000, active: 0 });
+    const lb = await s.getLeaderboard(G);
+    expect(lb.map((e) => e.user_id)).toEqual(["renn"]);
+    await mk("renn", 15500); // pesanan aktif
+    expect((await s.deleteUserOrders(G, "renn")).active).toBe(1);
+});

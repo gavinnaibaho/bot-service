@@ -131,6 +131,17 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "toko-hapus-pembeli",
+        description: "Hapus semua pesanan satu pembeli dari data (mis. order percobaan) & cabut role loyalitasnya",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.User, name: "pembeli", description: "Pembeli yang datanya dihapus", required: true },
+            { type: ApplicationCommandOptionType.String, name: "konfirmasi", description: "Ketik HAPUS untuk melanjutkan", required: true, max_length: 10 },
+        ],
+    },
+    {
         name: "status-channel",
         description: "Hubungkan channel (mis. voice di SERVER STATS) supaya namanya otomatis 🟢/🔴 sesuai layanan",
         type: ApplicationCommandType.ChatInput,

@@ -467,6 +467,34 @@ export async function handleInteraction({ data: interaction, api, applicationId 
                         return edit({ content: `♻️ **${removed}** pesanan dihapus. Pesanan berikutnya akan bernomor **#0001**.\nLeaderboard, statistik, dan riwayat pembeli ikut kosong. Pesan lama di channel (vouch, riwayat, log) dan role loyalitas yang sudah diberikan **tidak** dihapus otomatis.` });
                     }
 
+                    case "toko-hapus-pembeli": {
+                        if (!admin) return say("❌ Hanya admin.");
+                        const targetId = getOption(opts, "pembeli")?.value as string;
+                        if (String(getOption(opts, "konfirmasi")?.value ?? "") !== "HAPUS") return say("Dibatalkan. Ketik `HAPUS` (huruf besar) di opsi **konfirmasi** untuk menghapus data pembeli ini.");
+                        await defer();
+                        const res = await shopDb.deleteUserOrders(guildId, targetId);
+                        if (res.active > 0) return edit({ content: `❌ <@${targetId}> masih punya **${res.active}** pesanan aktif. Selesaikan atau batalkan dulu, lalu jalankan lagi.` });
+                        if (res.removed === 0) return edit({ content: `<@${targetId}> tidak punya data pesanan.` });
+                        // Cabut role loyalitas: setelah datanya dihapus, total belanjanya jadi Rp0.
+                        let roleNote = "";
+                        const loyalty = (await shopDb.getLoyaltyRoles(guildId)).map((r) => r.role_id);
+                        if (loyalty.length) {
+                            try {
+                                const m = await api.guilds.getMember(guildId, targetId);
+                                const keep = m.roles.filter((r) => !loyalty.includes(r));
+                                if (keep.length !== m.roles.length) {
+                                    await api.guilds.editMember(guildId, targetId, { roles: keep }, { reason: "Data pembeli dihapus" });
+                                    roleNote = "\nRole loyalitasnya juga sudah dicabut.";
+                                }
+                            } catch (err) {
+                                if (!String(err).includes("Unknown Member")) roleNote = "\n⚠️ Role loyalitasnya gagal dicabut (cek posisi role bot & izin Manage Roles), cabut manual ya.";
+                            }
+                        }
+                        await refreshLeaderboard(api, guildId);
+                        if (config) await logToChannel(api, config, { title: "🗑️ Data pembeli dihapus", description: `<@${targetId}>: ${res.removed} pesanan (${rupiah(res.spent)}) dihapus oleh <@${userId}>.`, color: brandColor() });
+                        return edit({ content: `🗑️ **${res.removed}** pesanan <@${targetId}> (total ${rupiah(res.spent)}) dihapus dari data.\nLeaderboard & statistik sudah diperbarui.${roleNote}\n-# Pesan lama di channel vouch/riwayat tidak ikut terhapus, hapus manual kalau perlu.` });
+                    }
+
                     case "status-channel": {
                         const sub = opts?.[0] as any;
                         const subOpts = sub?.options as APIApplicationCommandInteractionDataOption[] | undefined;

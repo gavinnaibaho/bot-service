@@ -569,6 +569,18 @@ export async function getShopStats(guild_id: string, todayStart: number): Promis
  * Pengaturan toko, harga, daftar harga, dan role loyalitas tidak ikut terhapus.
  * Mengembalikan jumlah pesanan yang dihapus.
  */
+/** Hapus semua pesanan satu pembeli. Mengembalikan jumlah & total Rupiah pesanan selesai yang dihapus. */
+export async function deleteUserOrders(guild_id: string, user_id: string): Promise<{ removed: number; spent: number; active: number }> {
+    return db.begin(async (tx) => {
+        const [a] = await tx`SELECT COUNT(*) AS n FROM shop_orders WHERE guild_id = ${guild_id} AND user_id = ${user_id} AND status IN ('menunggu_pembayaran', 'menunggu_verifikasi', 'diproses')`;
+        const active = Number(a?.n ?? 0);
+        if (active > 0) return { removed: 0, spent: 0, active };
+        const [c] = await tx`SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN status = 'selesai' THEN price ELSE 0 END), 0) AS spent FROM shop_orders WHERE guild_id = ${guild_id} AND user_id = ${user_id}`;
+        await tx`DELETE FROM shop_orders WHERE guild_id = ${guild_id} AND user_id = ${user_id}`;
+        return { removed: Number(c?.n ?? 0), spent: Number(c?.spent ?? 0), active: 0 };
+    });
+}
+
 export async function resetOrders(guild_id: string): Promise<number> {
     return db.begin(async (tx) => {
         const [c] = await tx`SELECT COUNT(*) AS n FROM shop_orders WHERE guild_id = ${guild_id}`;

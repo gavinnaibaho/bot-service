@@ -56,6 +56,7 @@ Tiket pesanan hanya bisa **dibatalkan dan ditutup oleh admin**. Satu pembeli han
 | `/close alasan` | Tutup toko (alasan opsional). Tiket yang sedang berjalan tetap bisa diproses |
 | `/announce [channel] [ping] [role] [warna] [gambar]` | Kirim pengumuman penting lewat form. Opsi `gambar` untuk upload banner langsung. Channel default = channel pengumuman toko |
 | `/kirim-pesan [channel]` | Kirim pesan teks biasa atas nama bot (tanpa embed), maks. 2000 karakter |
+| `/toko-hapus-pembeli pembeli konfirmasi:HAPUS` | Hapus semua pesanan satu pembeli (mis. order percobaan) dari leaderboard, statistik, dan total belanja, lalu cabut role loyalitasnya. Ditolak kalau pembeli masih punya pesanan aktif |
 | `/toko-reset-tiket konfirmasi:RESET` | Hapus semua data pesanan (mis. pesanan tes) dan mulai nomor dari #0001. Pengaturan, harga, dan role loyalitas tetap. Ditolak jika masih ada pesanan aktif |
 | `/status-channel atur\|hapus\|daftar` | Hubungkan channel (mis. voice di SERVER STATS) ke status toko atau layanan. Namanya otomatis berganti `🟢 ┃ …` / `🔴 ┃ …` saat /open, /close, /setup-harga, atau /toko-setup |
 | `/toko-set-pembayaran [qris] [lainnya] [hapus_qris] [hapus_lainnya]` | Tanpa form. `qris` = upload gambar QRIS, `lainnya` = rekening / e-wallet dipisah `;` (contoh `BCA 123 a.n. Gavin; DANA 08xx a.n. Gavin`), tiap item jadi satu baris. QRIS disimpan di database dan otomatis tampil di setiap tiket order & middleman. Tanpa opsi = lihat pengaturan saat ini |
