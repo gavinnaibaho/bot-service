@@ -111,11 +111,11 @@ export function panelMessage(config: ShopConfig) {
                     `🎁 ${mark("gift", "**Gift In Game** — Beli item di dalam game")}`,
                     `🏆 ${mark("boost", "**Joki / Boosting** — Naikkan rank / level game")}`,
                     "❓ **Tanya** — Pertanyaan seputar jual beli & Robux",
-                ].map((l) => `> ${l}`).join("\n"),
+                ].map((l) => `- ${l}`).join("\n"),
             ),
             text(
                 "**🧾 Alur Pemesanan**\n" +
-                "`1` Pilih layanan dan isi formulir\n`2` Lakukan pembayaran sesuai instruksi di tiket\n`3` Kirim bukti transfer di tiket\n`4` Pesanan diproses oleh admin",
+                "1. Pilih layanan dan isi formulir\n2. Lakukan pembayaran sesuai instruksi di tiket\n3. Kirim bukti transfer di tiket\n4. Pesanan diproses oleh admin",
             ),
             text("⚠️ Layanan yang dicoret sedang **tidak tersedia**. Admin tidak pernah meminta pembayaran atau data akun melalui DM."),
             divider(),
