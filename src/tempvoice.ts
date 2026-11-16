@@ -91,10 +91,10 @@ const ownerLine = (ownerId: string) => `Pemilik: <@${ownerId}>`;
 
 function panelComponents(ch: Partial<APIGuildChannel<any>>, _ownerId: string, guildId: string) {
     const locked = isLocked(ch as any, guildId);
-    const btn = (id: string, label: string, style = ButtonStyle.Secondary) => ({ type: ComponentType.Button, custom_id: `vc:${id}`, label, style });
+    const btn = (id: string, label: string, emoji: string, style = ButtonStyle.Secondary) => ({ type: ComponentType.Button, custom_id: `vc:${id}`, label, style, emoji: { name: emoji } });
     return [
-        { type: ComponentType.ActionRow, components: [btn("limit", "Batas"), locked ? btn("unlock", "Buka") : btn("lock", "Kunci"), btn("permit", "Izinkan", ButtonStyle.Success), btn("kick", "Kick", ButtonStyle.Danger)] },
-        { type: ComponentType.ActionRow, components: [btn("rename", "Ganti Nama"), btn("claim", "Klaim", ButtonStyle.Primary)] },
+        { type: ComponentType.ActionRow, components: [btn("limit", "Batas", "👥"), locked ? btn("unlock", "Buka", "🔓") : btn("lock", "Kunci", "🔒"), btn("permit", "Izinkan", "✅", ButtonStyle.Success), btn("kick", "Kick", "👢", ButtonStyle.Danger)] },
+        { type: ComponentType.ActionRow, components: [btn("rename", "Ganti Nama", "✏️"), btn("claim", "Klaim", "👑", ButtonStyle.Primary)] },
     ];
 }
 
