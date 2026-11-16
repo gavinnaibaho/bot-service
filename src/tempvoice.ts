@@ -86,33 +86,22 @@ async function setOverwrites(api: API, channelId: string, overwrites: APIOverwri
 
 // ---------- Panel pengaturan ----------
 
-const IS_COMPONENTS_V2 = 1 << 15;
-
-/** Panel status voice (Components V2): menampilkan kondisi saat ini, bukan daftar penjelasan. */
-function panelComponents(ch: { name?: string | null; user_limit?: number | null } & Partial<APIGuildChannel<any>>, ownerId: string, guildId: string) {
+/** Panel voice: hanya tombol berwarna. Tombol Kunci/Buka mengikuti status voice. */
+function panelComponents(ch: Partial<APIGuildChannel<any>>, _ownerId: string, guildId: string) {
     const locked = isLocked(ch as any, guildId);
-    const limit = ch.user_limit ? `${ch.user_limit} orang` : "Tanpa batas";
-    const name = (ch.name ?? "Voice").replace(/^🎧\s*/, "");
     const btn = (id: string, label: string, style = ButtonStyle.Secondary) => ({ type: ComponentType.Button, custom_id: `vc:${id}`, label, style });
-    return [{
-        type: 17,
-        accent_color: brandColor(),
-        components: [
-            { type: 10, content: `### Voice ${name}` },
-            { type: 14, divider: true, spacing: 1 },
-            { type: 10, content: `Pemilik: <@${ownerId}>\nAkses: ${locked ? "Private" : "Public"} · Batas: ${limit}` },
-            { type: ComponentType.ActionRow, components: [btn("limit", "Batas"), locked ? btn("unlock", "Buka") : btn("lock", "Kunci"), btn("permit", "Izinkan"), btn("kick", "Kick")] },
-            { type: ComponentType.ActionRow, components: [btn("rename", "Ganti Nama"), btn("claim", "Klaim")] },
-        ],
-    }];
+    return [
+        { type: ComponentType.ActionRow, components: [btn("limit", "Batas"), locked ? btn("unlock", "Buka") : btn("lock", "Kunci"), btn("permit", "Izinkan", ButtonStyle.Success), btn("kick", "Kick", ButtonStyle.Danger)] },
+        { type: ComponentType.ActionRow, components: [btn("rename", "Ganti Nama"), btn("claim", "Klaim", ButtonStyle.Primary)] },
+    ];
 }
 
 /** Perbarui panel yang sudah ada (tanpa mengirim ulang flag Components V2). */
-async function refreshPanel(api: API, channelId: string, messageId: string | undefined, ownerId: string, guildId: string, override?: { name?: string }) {
+async function refreshPanel(api: API, channelId: string, messageId: string | undefined, ownerId: string, guildId: string, _override?: { name?: string }) {
     if (!messageId) return;
     const ch = (await api.channels.get(channelId).catch(() => null)) as APIGuildChannel<any> | null;
     if (!ch) return;
-    await api.channels.editMessage(channelId, messageId, { components: panelComponents({ ...ch, ...override }, ownerId, guildId), allowed_mentions: { parse: [] } } as any)
+    await api.channels.editMessage(channelId, messageId, { components: panelComponents(ch, ownerId, guildId), allowed_mentions: { parse: [] } } as any)
         .catch((err) => console.log(`[voice] gagal memperbarui panel: ${err}`));
 }
 
@@ -231,9 +220,8 @@ async function createFor(api: API, guildId: string, vs: GatewayVoiceState, confi
     }
     const created = (await api.channels.get(channel.id).catch(() => null)) as APIGuildChannel<any> | null;
     await api.channels.createMessage(channel.id, {
-        components: panelComponents(created ?? { name: `🎧 ${display}`, user_limit: 0, permission_overwrites: overwrites } as any, vs.user_id, guildId),
-        flags: IS_COMPONENTS_V2,
-        allowed_mentions: { users: [vs.user_id] },
+        components: panelComponents(created ?? { permission_overwrites: overwrites } as any, vs.user_id, guildId),
+        allowed_mentions: { parse: [] },
     } as any).catch((err) => console.log(`[voice] gagal kirim panel: ${err}`));
 }
 

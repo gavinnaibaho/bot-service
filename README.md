@@ -150,7 +150,7 @@ Member yang masuk ke voice pemicu (misalnya **➕ Buat Voice**) otomatis dibuatk
 | `kategori` | Kategori tempat voice baru dibuat. Default: kategori voice pemicu |
 | `nonaktif` | Matikan fitur ini |
 
-Di chat voice yang baru muncul panel status untuk pemiliknya. Panel menampilkan pemilik, akses (Public / Private), dan batas orang, lalu otomatis berubah setiap pengaturan diganti.
+Di chat voice yang baru muncul tombol pengaturan untuk pemiliknya. Tombol **Kunci** berubah menjadi **Buka** saat voice private.
 
 | Tombol | Fungsi |
 |---|---|
