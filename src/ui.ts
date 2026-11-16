@@ -115,7 +115,7 @@ export function panelMessage(config: ShopConfig) {
             ),
             text(
                 "**🧾 Alur Pemesanan**\n" +
-                "### 1. Pilih layanan dan isi formulir\n### 2. Lakukan pembayaran sesuai instruksi di tiket\n### 3. Kirim bukti transfer di tiket\n### 4. Pesanan diproses oleh admin",
+                "1. Pilih layanan dan isi formulir\n2. Lakukan pembayaran sesuai instruksi di tiket\n3. Kirim bukti transfer di tiket\n4. Pesanan diproses oleh admin",
             ),
             text("⚠️ Layanan yang dicoret sedang **tidak tersedia**. Admin tidak pernah meminta pembayaran atau data akun melalui DM."),
             divider(),
