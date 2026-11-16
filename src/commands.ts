@@ -227,6 +227,18 @@ export const shopCommandsPayload: RESTPutAPIApplicationCommandsJSONBody = [
         ],
     },
     {
+        name: "voice-setup",
+        description: "Atur Join to Create: masuk ke voice ini = dibuatkan voice sendiri",
+        type: ApplicationCommandType.ChatInput,
+        default_member_permissions: ADMIN,
+        ...guildOnly,
+        options: [
+            { type: ApplicationCommandOptionType.Channel, name: "channel", description: "Voice pemicu, contoh ➕ Buat Voice (kosongkan = lihat pengaturan)", channel_types: [ChannelType.GuildVoice] },
+            { type: ApplicationCommandOptionType.Channel, name: "kategori", description: "Kategori tempat voice baru dibuat (default: kategori voice pemicu)", channel_types: [ChannelType.GuildCategory] },
+            { type: ApplicationCommandOptionType.Boolean, name: "nonaktif", description: "Matikan fitur Join to Create" },
+        ],
+    },
+    {
         name: "toko-statistik",
         description: "Panel admin: statistik penjualan & order terbaru",
         type: ApplicationCommandType.ChatInput,

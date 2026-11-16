@@ -258,6 +258,25 @@ CREATE TABLE IF NOT EXISTS shop_payment_qris (
 )`;
         },
     },
+    {
+        version: 13,
+        name: "voice sementara (join to create)",
+        up: async (tx) => {
+            await tx`
+CREATE TABLE IF NOT EXISTS tempvoice_config (
+  guild_id VARCHAR(20) PRIMARY KEY,
+  create_channel_id VARCHAR(20) NOT NULL,
+  category_id VARCHAR(20)
+)`;
+            await tx`
+CREATE TABLE IF NOT EXISTS tempvoice_channels (
+  channel_id VARCHAR(20) PRIMARY KEY,
+  guild_id VARCHAR(20) NOT NULL,
+  owner_id VARCHAR(20) NOT NULL,
+  created_at BIGINT NOT NULL
+)`;
+        },
+    },
 ];
 
 export async function initDb() {
@@ -821,4 +840,53 @@ export async function setQris(guild_id: string, img: QrisImage | null) {
     await db`
     INSERT INTO shop_payment_qris (guild_id, filename, data) VALUES (${guild_id}, ${img.name}, ${data})
     ON CONFLICT(guild_id) DO UPDATE SET filename = excluded.filename, data = excluded.data`;
+}
+
+// ---------- Voice sementara (Join to Create) ----------
+
+export type TempVoiceConfig = { guild_id: string; create_channel_id: string; category_id: string | null };
+export type TempVoiceChannel = { channel_id: string; guild_id: string; owner_id: string; created_at: number };
+
+export async function getTempVoiceConfig(guild_id: string): Promise<TempVoiceConfig | null> {
+    const [row] = await db`SELECT * FROM tempvoice_config WHERE guild_id = ${guild_id}`;
+    return row ? { guild_id: String(row.guild_id), create_channel_id: String(row.create_channel_id), category_id: row.category_id ? String(row.category_id) : null } : null;
+}
+
+export async function setTempVoiceConfig(c: TempVoiceConfig | null, guild_id: string) {
+    if (!c) {
+        await db`DELETE FROM tempvoice_config WHERE guild_id = ${guild_id}`;
+        return;
+    }
+    await db`
+    INSERT INTO tempvoice_config (guild_id, create_channel_id, category_id) VALUES (${c.guild_id}, ${c.create_channel_id}, ${c.category_id})
+    ON CONFLICT(guild_id) DO UPDATE SET create_channel_id = excluded.create_channel_id, category_id = excluded.category_id`;
+}
+
+const parseTempVoice = (r: any): TempVoiceChannel => ({ channel_id: String(r.channel_id), guild_id: String(r.guild_id), owner_id: String(r.owner_id), created_at: Number(r.created_at) });
+
+export async function getTempVoice(channel_id: string): Promise<TempVoiceChannel | null> {
+    const [row] = await db`SELECT * FROM tempvoice_channels WHERE channel_id = ${channel_id}`;
+    return row ? parseTempVoice(row) : null;
+}
+
+export async function getTempVoiceByOwner(guild_id: string, owner_id: string): Promise<TempVoiceChannel | null> {
+    const [row] = await db`SELECT * FROM tempvoice_channels WHERE guild_id = ${guild_id} AND owner_id = ${owner_id} LIMIT 1`;
+    return row ? parseTempVoice(row) : null;
+}
+
+export async function listTempVoices(guild_id: string): Promise<TempVoiceChannel[]> {
+    const rows = await db`SELECT * FROM tempvoice_channels WHERE guild_id = ${guild_id}`;
+    return rows.map(parseTempVoice);
+}
+
+export async function addTempVoice(v: TempVoiceChannel) {
+    await db`INSERT INTO tempvoice_channels (channel_id, guild_id, owner_id, created_at) VALUES (${v.channel_id}, ${v.guild_id}, ${v.owner_id}, ${v.created_at})`;
+}
+
+export async function setTempVoiceOwner(channel_id: string, owner_id: string) {
+    await db`UPDATE tempvoice_channels SET owner_id = ${owner_id} WHERE channel_id = ${channel_id}`;
+}
+
+export async function removeTempVoice(channel_id: string) {
+    await db`DELETE FROM tempvoice_channels WHERE channel_id = ${channel_id}`;
 }

@@ -20,7 +20,7 @@ Bot ini berdiri sendiri. Keamanan anti-spam ditangani bot terpisah, **Bum Securi
 
 ## Ringkasan command
 
-Ada **20 slash command**: 15 khusus admin dan 5 untuk semua member.
+Ada **21 slash command**: 16 khusus admin dan 5 untuk semua member.
 
 | Command | Siapa | Fungsi singkat |
 |---|---|---|
@@ -32,6 +32,7 @@ Ada **20 slash command**: 15 khusus admin dan 5 untuk semua member.
 | `/middleman-panel` | Admin | Kirim panel middleman |
 | `/toko-set-pembayaran` | Admin | Atur QRIS & rekening / e-wallet |
 | `/status-channel` | Admin | Channel status otomatis 🟢/🔴 |
+| `/voice-setup` | Admin | Atur voice sementara (Join to Create) |
 | `/announce` | Admin | Kirim pengumuman |
 | `/kirim-pesan` | Admin | Kirim pesan teks atas nama bot |
 | `/loyalitas` | Admin | Kelola role loyalitas |
@@ -137,6 +138,33 @@ Kirim panel order ke channel saat ini. Panel lama dihapus otomatis. Isinya: stat
 
 #### `/middleman-panel [biaya]`
 Kirim panel tiket middleman (rekber) ke channel saat ini. Opsi `biaya` menampilkan tarif jasa, contoh `5% (min. Rp5.000)`. Panel lama dihapus otomatis.
+
+### Voice sementara (Join to Create)
+
+#### `/voice-setup [channel] [kategori] [nonaktif]`
+Member yang masuk ke voice pemicu (misalnya **➕ Buat Voice**) otomatis dibuatkan voice sendiri, contoh **🎧 Gavin**, lalu dipindahkan ke sana.
+
+| Opsi | Fungsi |
+|---|---|
+| `channel` | Voice pemicu. Kosongkan untuk melihat pengaturan saat ini |
+| `kategori` | Kategori tempat voice baru dibuat. Default: kategori voice pemicu |
+| `nonaktif` | Matikan fitur ini |
+
+Di chat voice yang baru muncul panel untuk pemiliknya:
+
+| Tombol | Fungsi |
+|---|---|
+| 👥 Batas | Jumlah maksimal orang (0 = tanpa batas) |
+| 🔒 Private / 🔓 Public | Kunci voice (hanya pemilik & orang yang diizinkan bisa masuk) atau buka lagi |
+| ✅ Izinkan | Beri akses orang tertentu saat private |
+| 👢 Kick | Keluarkan orang dan blokir dari voice itu |
+| ✏️ Nama | Ganti nama voice (Discord membatasi 2× per 10 menit) |
+| 👑 Klaim | Ambil alih voice kalau pemiliknya sudah keluar |
+
+- Hanya pemilik (atau staf dengan izin Manage Channels) yang bisa memakai tombol.
+- Kalau member sudah punya voice, masuk ke voice pemicu akan memindahkannya ke voice miliknya.
+- Voice otomatis dihapus saat kosong, termasuk yang tertinggal saat bot offline.
+- Bot butuh izin **Manage Channels**, **Manage Roles**, dan **Move Members**.
 
 ### Pengumuman & pesan
 
@@ -281,7 +309,7 @@ Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
    ```
    https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=268692496
    ```
-   Izin: Manage Channels, Manage Roles, View Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Mention Everyone.
+   Izin: Manage Channels, Manage Roles, View Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Mention Everyone, Move Members (untuk voice sementara).
 3. **Jalankan** (butuh [Bun](https://bun.sh) v1.2+):
    ```bash
    cp .env.example .env   # isi DISCORD_TOKEN dan GUILD_ID
@@ -300,6 +328,7 @@ Bot membuat tiket #order-0001-nama  →  ⏳ Menunggu pembayaran
    /setup-harga metode:Gift In Game (GIG) harga:... channel:#robux-gift-in-game
    /loyalitas atur role:@💵 · ᴇᴀʀɴᴇʀ minimal_belanja:100000   (ulangi untuk tiap tingkat)
    /status-channel atur layanan:Toko channel:<voice channel>   (ulangi untuk tiap layanan)
+   /voice-setup channel:<➕ Buat Voice> kategori:<kategori voice>
    /toko-panel            ← di #ticket-order
    /middleman-panel       ← di #ticket-middleman
    ```
@@ -327,6 +356,7 @@ src/
   ui.ts           embed, tombol, panel, modal
   pricing.ts      perhitungan harga & kalkulator
   db.ts           database (SQLite default) + migration
+  tempvoice.ts    voice sementara (Join to Create)
   tools.ts        helper kecil
 tests/
   toko.test.ts    tes alur database & harga (bun test)

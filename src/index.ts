@@ -5,6 +5,7 @@ import { GatewayDispatchEvents, GatewayIntentBits, ActivityType, PresenceUpdateS
 import { initDb } from "./db";
 import { shopCommandsPayload } from "./commands";
 import { handleInteraction } from "./interaction";
+import { handleVoiceInteraction, onGuildCreate, onVoiceStateUpdate } from "./tempvoice";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("DISCORD_TOKEN belum diisi di .env");
@@ -22,7 +23,8 @@ const rest = new REST({ version: "10" }).setToken(token);
 const gateway = new WebSocketManager({
     token,
     rest,
-    intents: GatewayIntentBits.Guilds,
+    // GuildVoiceStates (bukan privileged) untuk fitur Join to Create.
+    intents: GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates,
     initialPresence: {
         status: PresenceUpdateStatus.Online,
         since: null,
@@ -34,9 +36,26 @@ const client = new Client({ rest, gateway });
 
 client.on(GatewayDispatchEvents.InteractionCreate, async ({ data, api }) => {
     try {
+        if (await handleVoiceInteraction(api, data)) return;
         await handleInteraction({ data, api, applicationId });
     } catch (err) {
         console.error(`Error interaction: ${err}`);
+    }
+});
+
+client.on(GatewayDispatchEvents.GuildCreate, ({ data, api }) => {
+    try {
+        onGuildCreate(api, data);
+    } catch (err) {
+        console.error(`Error GuildCreate: ${err}`);
+    }
+});
+
+client.on(GatewayDispatchEvents.VoiceStateUpdate, async ({ data, api }) => {
+    try {
+        await onVoiceStateUpdate(api, data);
+    } catch (err) {
+        console.error(`Error VoiceStateUpdate: ${err}`);
     }
 });
 
