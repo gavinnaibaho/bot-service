@@ -87,7 +87,17 @@ async function setOverwrites(api: API, channelId: string, overwrites: APIOverwri
 // ---------- Panel pengaturan ----------
 
 /** Panel voice: hanya tombol berwarna. Tombol Kunci/Buka mengikuti status voice. */
-const ownerLine = (ownerId: string) => `Pemilik: <@${ownerId}>`;
+/** Teks di atas tombol (tanpa kotak embed). Status ikut berubah setiap pengaturan diganti. */
+function panelText(ch: Partial<APIGuildChannel<any>> & { name?: string | null; user_limit?: number | null }, ownerId: string, guildId: string, nameOverride?: string) {
+    const name = nameOverride ?? (ch.name ?? "Voice").replace(/^🎧\s*/, "");
+    const limit = ch.user_limit ? `${ch.user_limit} orang` : "Tanpa batas";
+    return [
+        `### Voice ${name}`,
+        `Pemilik : <@${ownerId}>`,
+        `Akses: ${isLocked(ch as any, guildId) ? "Private" : "Public"} · Batas: ${limit}`,
+        "─────────────",
+    ].join("\n");
+}
 
 function panelComponents(ch: Partial<APIGuildChannel<any>>, _ownerId: string, guildId: string) {
     const locked = isLocked(ch as any, guildId);
@@ -103,7 +113,7 @@ async function refreshPanel(api: API, channelId: string, messageId: string | und
     if (!messageId) return;
     const ch = (await api.channels.get(channelId).catch(() => null)) as APIGuildChannel<any> | null;
     if (!ch) return;
-    await api.channels.editMessage(channelId, messageId, { content: ownerLine(ownerId), components: panelComponents(ch, ownerId, guildId), allowed_mentions: { parse: [] } } as any)
+    await api.channels.editMessage(channelId, messageId, { content: panelText(ch, ownerId, guildId, _override?.name), components: panelComponents(ch, ownerId, guildId), allowed_mentions: { parse: [] } } as any)
         .catch((err) => console.log(`[voice] gagal memperbarui panel: ${err}`));
 }
 
@@ -222,7 +232,7 @@ async function createFor(api: API, guildId: string, vs: GatewayVoiceState, confi
     }
     const created = (await api.channels.get(channel.id).catch(() => null)) as APIGuildChannel<any> | null;
     await api.channels.createMessage(channel.id, {
-        content: ownerLine(vs.user_id),
+        content: panelText(created ?? ({ name: `🎧 ${display}`, user_limit: 0, permission_overwrites: overwrites } as any), vs.user_id, guildId),
         components: panelComponents(created ?? { permission_overwrites: overwrites } as any, vs.user_id, guildId),
         allowed_mentions: { parse: [] },
     } as any).catch((err) => console.log(`[voice] gagal kirim panel: ${err}`));
@@ -290,7 +300,7 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
             const ch = (await api.channels.get(channelId)) as APIGuildChannel<any>;
             await setOverwrites(api, channelId, withMember(ch.permission_overwrites ?? [], userId, VIEW | CONNECT, 0n), "Klaim voice");
             await db.setTempVoiceOwner(channelId, userId);
-            await api.interactions.updateMessage(interaction.id, interaction.token, { content: ownerLine(userId), components: panelComponents({ ...ch, permission_overwrites: withMember(ch.permission_overwrites ?? [], userId, VIEW | CONNECT, 0n) }, userId, guildId), allowed_mentions: { parse: [] } } as any);
+            await api.interactions.updateMessage(interaction.id, interaction.token, { content: panelText(ch, userId, guildId), components: panelComponents({ ...ch, permission_overwrites: withMember(ch.permission_overwrites ?? [], userId, VIEW | CONNECT, 0n) }, userId, guildId), allowed_mentions: { parse: [] } } as any);
             return true;
         }
 
@@ -307,14 +317,14 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
                 const ch = (await api.channels.get(channelId)) as APIGuildChannel<any>;
                 const locked = action === "lock";
                 if (isLocked(ch, guildId) === locked) {
-                    await api.interactions.updateMessage(interaction.id, interaction.token, { content: ownerLine(temp.owner_id), components: panelComponents(ch, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
+                    await api.interactions.updateMessage(interaction.id, interaction.token, { content: panelText(ch, temp.owner_id, guildId), components: panelComponents(ch, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
                     return true;
                 }
                 const members = (ch.permission_overwrites ?? []).filter((o) => o.type === OverwriteType.Member);
                 const roles = roleOverwrites(await parentOverwrites(api, ch), guildId, locked);
                 const next = [...roles, ...members];
                 await setOverwrites(api, channelId, next, locked ? "Voice private" : "Voice public");
-                await api.interactions.updateMessage(interaction.id, interaction.token, { content: ownerLine(temp.owner_id), components: panelComponents({ ...ch, permission_overwrites: next }, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
+                await api.interactions.updateMessage(interaction.id, interaction.token, { content: panelText({ ...ch, permission_overwrites: next }, temp.owner_id, guildId), components: panelComponents({ ...ch, permission_overwrites: next }, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
                 return true;
             }
             return true;
