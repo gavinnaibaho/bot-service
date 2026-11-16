@@ -150,16 +150,16 @@ Member yang masuk ke voice pemicu (misalnya **➕ Buat Voice**) otomatis dibuatk
 | `kategori` | Kategori tempat voice baru dibuat. Default: kategori voice pemicu |
 | `nonaktif` | Matikan fitur ini |
 
-Di chat voice yang baru muncul panel untuk pemiliknya:
+Di chat voice yang baru muncul panel status untuk pemiliknya. Panel menampilkan pemilik, akses (Public / Private), dan batas orang, lalu otomatis berubah setiap pengaturan diganti.
 
 | Tombol | Fungsi |
 |---|---|
-| 👥 Batas | Jumlah maksimal orang (0 = tanpa batas) |
-| 🔒 Private / 🔓 Public | Kunci voice (hanya pemilik & orang yang diizinkan bisa masuk) atau buka lagi |
-| ✅ Izinkan | Beri akses orang tertentu saat private |
-| 👢 Kick | Keluarkan orang dan blokir dari voice itu |
-| ✏️ Nama | Ganti nama voice (Discord membatasi 2× per 10 menit) |
-| 👑 Klaim | Ambil alih voice kalau pemiliknya sudah keluar |
+| Batas | Jumlah maksimal orang (0 = tanpa batas) |
+| Kunci / Buka | Jadikan voice private (hanya pemilik & orang yang diizinkan bisa masuk) atau public lagi |
+| Izinkan | Beri akses orang tertentu saat private |
+| Kick | Keluarkan orang dan blokir dari voice itu |
+| Ganti Nama | Ganti nama voice (Discord membatasi 2× per 10 menit) |
+| Klaim | Ambil alih voice kalau pemiliknya sudah keluar |
 
 - Hanya pemilik (atau staf dengan izin Manage Channels) yang bisa memakai tombol.
 - Kalau member sudah punya voice, masuk ke voice pemicu akan memindahkannya ke voice miliknya.

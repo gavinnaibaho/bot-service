@@ -86,32 +86,34 @@ async function setOverwrites(api: API, channelId: string, overwrites: APIOverwri
 
 // ---------- Panel pengaturan ----------
 
-function panelMessage(ownerId: string) {
-    const btn = (id: string, label: string, emoji: string, style = ButtonStyle.Secondary) => ({ type: ComponentType.Button, custom_id: `vc:${id}`, label, style, emoji: { name: emoji } });
-    return {
-        content: `<@${ownerId}>`,
-        embeds: [{
-            title: "🎧 Pengaturan Voice",
-            color: brandColor(),
-            description: [
-                `Voice ini milik <@${ownerId}>. Atur lewat tombol di bawah:`,
-                "",
-                "👥 **Batas** — jumlah maksimal orang (0 = tanpa batas)",
-                "🔒 **Private** / 🔓 **Public** — kunci atau buka voice",
-                "✅ **Izinkan** — beri akses orang tertentu saat private",
-                "👢 **Kick** — keluarkan & blokir orang dari voice ini",
-                "✏️ **Nama** — ganti nama voice",
-                "👑 **Klaim** — ambil alih voice kalau pemiliknya sudah keluar",
-                "",
-                "-# Voice otomatis dihapus saat semua orang sudah keluar.",
-            ].join("\n"),
-        }],
+const IS_COMPONENTS_V2 = 1 << 15;
+
+/** Panel status voice (Components V2): menampilkan kondisi saat ini, bukan daftar penjelasan. */
+function panelComponents(ch: { name?: string | null; user_limit?: number | null } & Partial<APIGuildChannel<any>>, ownerId: string, guildId: string) {
+    const locked = isLocked(ch as any, guildId);
+    const limit = ch.user_limit ? `${ch.user_limit} orang` : "Tanpa batas";
+    const name = (ch.name ?? "Voice").replace(/^🎧\s*/, "");
+    const btn = (id: string, label: string, style = ButtonStyle.Secondary) => ({ type: ComponentType.Button, custom_id: `vc:${id}`, label, style });
+    return [{
+        type: 17,
+        accent_color: brandColor(),
         components: [
-            { type: ComponentType.ActionRow, components: [btn("limit", "Batas", "👥"), btn("lock", "Private", "🔒"), btn("unlock", "Public", "🔓")] },
-            { type: ComponentType.ActionRow, components: [btn("permit", "Izinkan", "✅", ButtonStyle.Success), btn("kick", "Kick", "👢", ButtonStyle.Danger), btn("rename", "Nama", "✏️"), btn("claim", "Klaim", "👑", ButtonStyle.Primary)] },
+            { type: 10, content: `### Voice ${name}` },
+            { type: 14, divider: true, spacing: 1 },
+            { type: 10, content: `Pemilik: <@${ownerId}>\nAkses: ${locked ? "Private" : "Public"} · Batas: ${limit}` },
+            { type: ComponentType.ActionRow, components: [btn("limit", "Batas"), locked ? btn("unlock", "Buka") : btn("lock", "Kunci"), btn("permit", "Izinkan"), btn("kick", "Kick")] },
+            { type: ComponentType.ActionRow, components: [btn("rename", "Ganti Nama"), btn("claim", "Klaim")] },
         ],
-        allowed_mentions: { users: [ownerId] },
-    };
+    }];
+}
+
+/** Perbarui panel yang sudah ada (tanpa mengirim ulang flag Components V2). */
+async function refreshPanel(api: API, channelId: string, messageId: string | undefined, ownerId: string, guildId: string, override?: { name?: string }) {
+    if (!messageId) return;
+    const ch = (await api.channels.get(channelId).catch(() => null)) as APIGuildChannel<any> | null;
+    if (!ch) return;
+    await api.channels.editMessage(channelId, messageId, { components: panelComponents({ ...ch, ...override }, ownerId, guildId), allowed_mentions: { parse: [] } } as any)
+        .catch((err) => console.log(`[voice] gagal memperbarui panel: ${err}`));
 }
 
 function userPickerModal(customId: string, title: string, label: string) {
@@ -227,7 +229,12 @@ async function createFor(api: API, guildId: string, vs: GatewayVoiceState, confi
         await deleteTempVoice(api, channel.id);
         return;
     }
-    await api.channels.createMessage(channel.id, panelMessage(vs.user_id) as any).catch((err) => console.log(`[voice] gagal kirim panel: ${err}`));
+    const created = (await api.channels.get(channel.id).catch(() => null)) as APIGuildChannel<any> | null;
+    await api.channels.createMessage(channel.id, {
+        components: panelComponents(created ?? { name: `🎧 ${display}`, user_limit: 0, permission_overwrites: overwrites } as any, vs.user_id, guildId),
+        flags: IS_COMPONENTS_V2,
+        allowed_mentions: { users: [vs.user_id] },
+    } as any).catch((err) => console.log(`[voice] gagal kirim panel: ${err}`));
 }
 
 async function deleteTempVoice(api: API, channelId: string) {
@@ -287,13 +294,12 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
         if (action === "claim") {
             if (isOwner) return void (await say("Kamu sudah pemilik voice ini.")), true;
             const here = membersIn(guildId, channelId);
-            if (here.includes(temp.owner_id)) return void (await say(`❌ Pemilik (<@${temp.owner_id}>) masih ada di voice.`)), true;
+            if (here.includes(temp.owner_id)) return void (await say(`Pemilik (<@${temp.owner_id}>) masih ada di voice.`)), true;
             if (!here.includes(userId) && !isStaff) return void (await say("❌ Masuk ke voice ini dulu untuk mengklaimnya.")), true;
             const ch = (await api.channels.get(channelId)) as APIGuildChannel<any>;
             await setOverwrites(api, channelId, withMember(ch.permission_overwrites ?? [], userId, VIEW | CONNECT, 0n), "Klaim voice");
             await db.setTempVoiceOwner(channelId, userId);
-            await say("👑 Sekarang kamu pemilik voice ini.");
-            await api.channels.createMessage(channelId, { content: `👑 <@${userId}> sekarang pemilik voice ini.`, allowed_mentions: { parse: [] } }).catch(() => null);
+            await api.interactions.updateMessage(interaction.id, interaction.token, { components: panelComponents({ ...ch, permission_overwrites: withMember(ch.permission_overwrites ?? [], userId, VIEW | CONNECT, 0n) }, userId, guildId), allowed_mentions: { parse: [] } } as any);
             return true;
         }
 
@@ -309,13 +315,15 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
             if (action === "lock" || action === "unlock") {
                 const ch = (await api.channels.get(channelId)) as APIGuildChannel<any>;
                 const locked = action === "lock";
-                if (isLocked(ch, guildId) === locked) return void (await say(locked ? "Voice ini sudah private." : "Voice ini sudah public.")), true;
+                if (isLocked(ch, guildId) === locked) {
+                    await api.interactions.updateMessage(interaction.id, interaction.token, { components: panelComponents(ch, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
+                    return true;
+                }
                 const members = (ch.permission_overwrites ?? []).filter((o) => o.type === OverwriteType.Member);
                 const roles = roleOverwrites(await parentOverwrites(api, ch), guildId, locked);
-                await setOverwrites(api, channelId, [...roles, ...members], locked ? "Voice private" : "Voice public");
-                await say(locked
-                    ? "🔒 Voice sekarang **private**. Orang yang sudah di dalam tetap di sini; yang lain tidak bisa masuk kecuali kamu **✅ Izinkan**."
-                    : "🔓 Voice sekarang **public**, semua bisa masuk.");
+                const next = [...roles, ...members];
+                await setOverwrites(api, channelId, next, locked ? "Voice private" : "Voice public");
+                await api.interactions.updateMessage(interaction.id, interaction.token, { components: panelComponents({ ...ch, permission_overwrites: next }, temp.owner_id, guildId), allowed_mentions: { parse: [] } } as any);
                 return true;
             }
             return true;
@@ -323,17 +331,20 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
 
         // Form disubmit
         const comps = (interaction.data as any).components as any[];
+        const panelId = (interaction as any).message?.id as string | undefined;
         if (action === "limit") {
             const n = Number((modalField(comps, "value")[0] ?? "").trim());
             if (!Number.isInteger(n) || n < 0 || n > 99) return void (await say("❌ Isi angka 0 sampai 99 (0 = tanpa batas).")), true;
             await api.channels.edit(channelId, { user_limit: n } as any, { reason: "Batas voice" });
-            await say(n ? `👥 Batas voice: **${n} orang**.` : "👥 Batas voice dihapus (tanpa batas).");
+            await say(n ? `Batas voice: **${n} orang**.` : "Batas voice dihapus (tanpa batas).");
+            await refreshPanel(api, channelId, panelId, temp.owner_id, guildId);
             return true;
         }
         if (action === "rename") {
             const name = trim((modalField(comps, "value")[0] ?? "").trim(), 90);
             if (!name) return void (await say("❌ Nama tidak boleh kosong.")), true;
-            await say(`✏️ Nama voice diganti menjadi **${name}**.\n-# Discord membatasi ganti nama 2× per 10 menit; kalau terlalu sering, nama baru menyusul.`);
+            await say(`Nama voice diganti menjadi **${name}**.\n-# Discord membatasi ganti nama 2× per 10 menit; kalau terlalu sering, nama baru menyusul.`);
+            await refreshPanel(api, channelId, panelId, temp.owner_id, guildId, { name });
             api.channels.edit(channelId, { name: `🎧 ${name}` } as any, { reason: "Ganti nama voice" }).catch((err) => console.log(`[voice] gagal ganti nama: ${err}`));
             return true;
         }
@@ -349,7 +360,7 @@ export async function handleVoiceInteraction(api: API, interaction: APIInteracti
                 for (const id of ids) if (here.has(id)) await api.guilds.editMember(guildId, id, { channel_id: null }, { reason: "Kick dari voice" }).catch(() => null);
             }
             const names = ids.map((id) => `<@${id}>`).join(", ");
-            await say(action === "permit" ? `✅ ${names} sekarang bisa masuk voice ini.` : `👢 ${names} dikeluarkan dan tidak bisa masuk lagi ke voice ini.`);
+            await say(action === "permit" ? `${names} sekarang bisa masuk voice ini.` : `${names} dikeluarkan dan tidak bisa masuk lagi ke voice ini.`);
             return true;
         }
         return true;
