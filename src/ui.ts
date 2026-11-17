@@ -73,7 +73,7 @@ const divider = (big = false) => ({ type: 14, divider: true, spacing: big ? 2 : 
  * garis pemisah, daftar layanan, alur pemesanan, dan tombol di dalam kotak.
  */
 /** Logo panel toko (file assets/bumstore-logo.png di repo GitHub). */
-export const PANEL_LOGO_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/bumstore-logo.png?v=2";
+export const PANEL_LOGO_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/bumstore-logo.png?v=3";
 
 export function panelMessage(config: ShopConfig) {
     const store = config.store_name;
