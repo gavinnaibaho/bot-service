@@ -75,6 +75,9 @@ const divider = (big = false) => ({ type: 14, divider: true, spacing: big ? 2 : 
 /** Logo panel toko (file assets/bumstore-logo.png di repo GitHub). */
 export const PANEL_LOGO_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/bumstore-logo.png?v=3";
 
+/** Banner di atas tombol layanan (file assets/panel-banner.jpg di repo GitHub). */
+export const PANEL_BANNER_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/panel-banner.jpg?v=1";
+
 export function panelMessage(config: ShopConfig) {
     const store = config.store_name;
     const mark = (m: DeliveryMethod, t: string) => isMethodEnabled(config, m) ? t : `~~${t}~~`;
@@ -126,6 +129,7 @@ export function panelMessage(config: ShopConfig) {
             ),
             text("⚠️ Layanan yang dicoret sedang **tidak tersedia**. Admin tidak pernah meminta pembayaran atau data akun melalui DM."),
             divider(),
+            { type: 12, items: [{ media: { url: PANEL_BANNER_URL } }] }, // Media Gallery: banner di atas tombol layanan
             ...rows,
             text(`-# ${store} • Pesanan diproses melalui tiket`),
         ],
