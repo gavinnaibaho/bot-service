@@ -245,6 +245,7 @@ export function vouchMessage(order: Order, buyer: UserLike, rating: number, revi
                 `▫️ **Order :** ${orderSummary(order)}`,
                 `▫️ **Nominal :** ${rupiah(order.price)}`,
                 `▫️ **Status :** Selesai ✅`,
+                `▫️ **Ticket-ID :** ${orderCode(order.id)}`,
                 line,
                 "",
                 `💬 **Ulasan :** *"${review.replace(/"/g, "'")}"*`,
