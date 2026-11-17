@@ -104,7 +104,7 @@ export function panelMessage(config: ShopConfig) {
         components: [
             {
                 type: 9, // Section: judul + logo di kanan
-                components: [text(`# ${store.replace(/\s+/g, "")} - Ticketing-System\n**Layanan Top Up Robux & Jasa Game**`)],
+                components: [text(`### ${store.replace(/\s+/g, "")} - Ticketing-System\nLayanan Top Up Robux & Jasa Game`)],
                 accessory: { type: 11, media: { url: PANEL_LOGO_URL } },
             },
             divider(),
