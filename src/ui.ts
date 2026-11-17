@@ -73,7 +73,7 @@ const divider = (big = false) => ({ type: 14, divider: true, spacing: big ? 2 : 
  * garis pemisah, daftar layanan, alur pemesanan, dan tombol di dalam kotak.
  */
 /** Logo panel toko (file assets/bumstore-logo.png di repo GitHub). */
-export const PANEL_LOGO_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/bumstore-logo.png";
+export const PANEL_LOGO_URL = "https://raw.githubusercontent.com/gavinnaibaho/bot-service/main/assets/bumstore-logo.png?v=2";
 
 export function panelMessage(config: ShopConfig) {
     const store = config.store_name;
@@ -104,11 +104,11 @@ export function panelMessage(config: ShopConfig) {
         components: [
             {
                 type: 9, // Section: judul + logo di kanan
-                components: [text(`### ${store.replace(/\s+/g, "")} - Ticketing-System\nLayanan Top Up Robux & Jasa Game`)],
+                components: [text(`### ${store.replace(/\s+/g, "")} - Ticketing-System\nLayanan Top Up Robux & Jasa Game\n\n${status}`)],
                 accessory: { type: 11, media: { url: PANEL_LOGO_URL } },
             },
             divider(),
-            text(`${status}\n\nSilakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin.`),
+            text("Silakan pilih layanan melalui tombol di bawah. Setiap pesanan diproses melalui tiket pribadi antara pembeli dan admin."),
             text(
                 "**📋 Layanan Tersedia**\n" +
                 [
